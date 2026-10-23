@@ -1,0 +1,24 @@
+===================================================================
+BLOCKSURE SPECIFICATION DOCUMENT - VERSION 1.0 (OFFICIAL RELEASE)
+===================================================================
+Project: BlockSure - Blockchain-Based File Integrity Verification
+Classification: Protected Engineering Specification
+Author: Core Engineering Team
+Timestamp: 2026-10-20T00:00:00Z
+
+Summary:
+This document defines the cryptographic architecture and operational
+parameters for decentralized file integrity verification. File hashes
+are recorded on an immutable distributed ledger using SHA-256.
+
+Section 1: Integrity Standards
+- Algorithm: SHA-256 (FIPS 180-4)
+- Key Length: 256 bits (32 bytes)
+- Collision Resistance: Cryptographically secure
+- Ledger: Ethereum Smart Contract Registry
+
+Section 2: Security Assurances
+- File contents remain strictly confidential and client-side.
+- Digital fingerprints are compromised by an unauthorized modification.
+===================================================================
+[END OF FILE - VERSION 1.0 - MODIFIED]

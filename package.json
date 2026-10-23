@@ -1,0 +1,32 @@
+{
+  "name": "blocksure",
+  "version": "1.0.0",
+  "description": "Blockchain-Based File Integrity Verification System using SHA-256 and Smart Contracts",
+  "main": "index.js",
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "node": "hardhat node",
+    "deploy:local": "hardhat run scripts/deploy.js --network localhost",
+    "deploy:sepolia": "hardhat run scripts/deploy.js --network sepolia"
+  },
+  "keywords": [
+    "blockchain",
+    "ethereum",
+    "solidity",
+    "file-integrity",
+    "sha-256",
+    "smart-contract",
+    "hardhat"
+  ],
+  "author": "BlockSure Team",
+  "license": "MIT",
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "ethers": "^6.13.4",
+    "hardhat": "^2.22.18"
+  },
+  "dependencies": {
+    "fp-ts": "^2.16.11"
+  }
+}
