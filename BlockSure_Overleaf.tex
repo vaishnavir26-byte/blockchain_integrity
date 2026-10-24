@@ -1,6 +1,5 @@
 \documentclass[conference]{IEEEtran}
 \IEEEoverridecommandlockouts
-% The preceding line is only needed to identify funding in the first footnote. If that is unneeded, please comment it out.
 \usepackage{cite}
 \usepackage{amsmath,amssymb,amsfonts}
 \usepackage{algorithmic}
@@ -11,6 +10,10 @@
 \usepackage{array}
 \usepackage{url}
 \usepackage{multirow}
+\usepackage{tikz}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, calc, backgrounds, fit}
 
 \def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
     T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
@@ -82,7 +85,51 @@ Nizamuddin et al. (2019) \cite{nizamuddin2019} & IPFS multihash & Ethereum Mainn
 \end{table*}
 
 \section{Proposed System Architecture}
-BlockSure decouples file hashing from on-chain storage across four coordinated layers:
+BlockSure decouples file hashing from on-chain storage across four coordinated layers, illustrated in Fig.~\ref{fig:architecture}.
+
+\begin{figure*}[t]
+\centering
+\begin{tikzpicture}[
+    box/.style={rectangle, draw=blue!70!black, fill=blue!5, rounded corners=3pt, thick, align=center, font=\small},
+    secbox/.style={rectangle, draw=teal!70!black, fill=teal!5, rounded corners=3pt, thick, align=center, font=\small},
+    ethbox/.style={rectangle, draw=purple!70!black, fill=purple!5, rounded corners=3pt, thick, align=center, font=\small},
+    arrow/.style={-{Stealth[scale=1.1]}, thick, draw=gray!80!black},
+    darrow/.style={-{Stealth[scale=1.1]}, dashed, thick, draw=red!70!black}
+]
+
+% Client Side Container
+\draw[draw=blue!50!black, fill=blue!2, rounded corners=5pt, dashed, thick] (-0.3,-0.4) rectangle (5.2,5.2);
+\node[anchor=north west, font=\footnotesize\bfseries, color=blue!70!black] at (-0.1,5.1) {CLIENT APPLICATION LAYER (Zero Off-Device Upload)};
+
+\node[box, minimum width=2.4cm, minimum height=0.9cm] (localfile) at (2.45,4.2) {\textbf{Local File System}\\(Off-Chain File Bytes)};
+\node[box, minimum width=4.6cm, minimum height=1.1cm, fill=blue!10] (webcrypto) at (2.45,2.7) {\textbf{Browser Web Crypto API}\\\texttt{crypto.subtle.digest("SHA-256")}\\(In-Memory RAM Hashing)};
+\node[box, minimum width=4.6cm, minimum height=0.9cm] (wallet) at (2.45,0.7) {\textbf{MetaMask / ethers.js Client}\\32-Byte \texttt{bytes32} Hash Digest};
+
+\draw[arrow] (localfile) -- node[right, font=\scriptsize, align=left] {Raw Bytes\\(Local RAM)} (webcrypto);
+\draw[arrow] (webcrypto) -- node[right, font=\scriptsize] {32-Byte Hash ($H$)} (wallet);
+
+% RPC Boundary
+\node[secbox, minimum width=2.2cm, minimum height=2.4cm] (rpc) at (7.3,2.45) {\textbf{JSON-RPC}\\\textbf{Transport}\\\scriptsize EIP-1193 Provider\\\scriptsize (Alchemy / Infura\\\scriptsize / Local Node)};
+
+\draw[arrow] (wallet) -| node[above, font=\scriptsize, pos=0.3] {Signed RPC Payload ($H$, meta)} (rpc.south);
+\draw[arrow] (rpc.north) |- node[above, font=\scriptsize, pos=0.7] {Verification Outcome (Match/Tamper)} (wallet.east);
+
+% Ethereum Smart Contract Container
+\draw[draw=purple!50!black, fill=purple!2, rounded corners=5pt, dashed, thick] (9.4,-0.4) rectangle (16.5,5.2);
+\node[anchor=north west, font=\footnotesize\bfseries, color=purple!70!black] at (9.6,5.1) {ETHEREUM SMART CONTRACT LAYER (\texttt{FileIntegrityRegistry.sol})};
+
+\node[ethbox, minimum width=6.5cm, minimum height=1.0cm, fill=purple!10] (rbac) at (12.95,4.1) {\textbf{Role-Based Access Control (RBAC)}\\\scriptsize \texttt{onlyFileOwner} $\mid$ \texttt{onlyAuthorized} $\mid$ \texttt{authorizeCollaborator()}};
+\node[ethbox, minimum width=6.5cm, minimum height=1.1cm] (lineage) at (12.95,2.45) {\textbf{Append-Only Version Provenance Chain}\\\scriptsize $\mathcal{V}_n = \langle n, H_n, t_n, H_{prev}, u_n \rangle \mid$ Backward Linked Pointers};
+\node[ethbox, minimum width=6.5cm, minimum height=1.0cm, fill=green!10, draw=green!60!black] (verify) at (12.95,0.7) {\textbf{Dual-Phase State Verification Engine}\\\scriptsize \texttt{verifyHash()}: $O(1)$ Current Match $\mid$ $O(V)$ Retrospective Scan (0 Gas)};
+
+\draw[arrow] (rpc.east) -- node[above, font=\scriptsize] {Tx: \texttt{addVersion()}} (lineage.west);
+\draw[arrow] (lineage) -- (rbac);
+\draw[arrow] (lineage) -- (verify);
+
+\end{tikzpicture}
+\caption{System Architecture of BlockSure: Decoupling client-side in-memory SHA-256 fingerprinting from on-chain RBAC and append-only version provenance.}
+\label{fig:architecture}
+\end{figure*}
 
 \subsection{Mathematical Formulations}
 \textbf{Definition 1 (Cryptographic Digest):} Let $F \in \{0, 1\}^*$ be the arbitrary-length sequence of bytes comprising a digital document. The fingerprint $H(F)$ is computed client-side using NIST FIPS 180-4 SHA-256:
@@ -95,13 +142,52 @@ By the second-preimage resistance of SHA-256, it is computationally infeasible t
 \begin{equation}
     \mathcal{V}_n = \langle n, H(F_n), \text{name}, \text{size}, t_n, H_{\text{prev}}, u_n, \text{note} \rangle
 \end{equation}
-where $u_n$ is the updater address, and $H_{\text{prev}}$ forms the cryptographic backward link:
+where $u_n$ is the updater address, and $H_{\text{prev}}$ forms the cryptographic backward link (illustrated in Fig.~\ref{fig:provenance_chain}):
 \begin{equation}
     H_{\text{prev}} = \begin{cases} 
     0x0^{64}, & \text{if } n = 1 \text{ (Genesis Root)} \\ 
     H(F_{n-1}), & \text{if } n > 1 \text{ (Provenance Link)} 
     \end{cases}
 \end{equation}
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[
+    vbox/.style={rectangle, draw=purple!80!black, fill=purple!5, rounded corners=3pt, thick, align=center, font=\scriptsize, minimum width=2.4cm, minimum height=1.7cm},
+    arrow/.style={-{Stealth[scale=1.0]}, thick, draw=purple!80!black}
+]
+
+\node[vbox] (v1) at (0,0) {
+    \textbf{Version 1 (Genesis)}\\
+    \texttt{version:} 1\\
+    \texttt{fileHash:} $H(F_1)$\\
+    \texttt{prevHash:} \textbf{0x000...}\\
+    \texttt{updater:} Owner ($u_1$)
+};
+
+\node[vbox] (v2) at (3.0,0) {
+    \textbf{Version 2 (Update)}\\
+    \texttt{version:} 2\\
+    \texttt{fileHash:} $H(F_2)$\\
+    \texttt{prevHash:} $H(F_1)$\\
+    \texttt{updater:} Collab ($u_2$)
+};
+
+\node[vbox] (v3) at (6.0,0) {
+    \textbf{Version 3 (Latest)}\\
+    \texttt{version:} 3\\
+    \texttt{fileHash:} $H(F_3)$\\
+    \texttt{prevHash:} $H(F_2)$\\
+    \texttt{updater:} Owner ($u_1$)
+};
+
+\draw[arrow] (v2.west) -- node[above, font=\tiny] {$H_{\text{prev}} = H(F_1)$} (v1.east);
+\draw[arrow] (v3.west) -- node[above, font=\tiny] {$H_{\text{prev}} = H(F_2)$} (v2.east);
+
+\end{tikzpicture}
+\caption{Cryptographic backward-linked provenance chain in BlockSure: each subsequent version points immutably to the prior version's hash.}
+\label{fig:provenance_chain}
+\end{figure}
 
 \textbf{Definition 3 (Two-Phase State Verification):} Given a client-computed hash $h_{\text{calc}} = H(F_{\text{local}})$:
 \begin{equation}
@@ -188,7 +274,7 @@ To evaluate RQ1, twenty controlled test documents were subjected to seven mutati
 Crucially, Test Case 1.2 confirmed the \textbf{filename invariance property}: altering file metadata without modifying underlying bytes produces an identical 32-byte digest, eliminating false-positive alarms.
 
 \subsection{Experiment 2: Client Hashing Throughput}
-Client-side latency was benchmarked using the Web Crypto API across $N=30$ repeated trials per payload magnitude. Table~\ref{tab:hashing_perf} demonstrates that throughput stabilizes between 220 and 303~MB/s for files above 64~KB.
+Client-side latency was benchmarked using the Web Crypto API across $N=30$ repeated trials per payload magnitude. Table~\ref{tab:hashing_perf} and Fig.~\ref{fig:hashing_chart} demonstrate that throughput scales linearly with buffer size, stabilizing between 220 and 303~MB/s for files above 64~KB.
 
 \begin{table}[h]
 \caption{Client-Side Hashing Latency and Throughput ($N=30$)}
@@ -208,8 +294,49 @@ Client-side latency was benchmarked using the Web Crypto API across $N=30$ repea
 \end{tabular}
 \end{table}
 
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+    width=8.4cm,
+    height=5.2cm,
+    xlabel={Payload Size (MB)},
+    ylabel={Hashing Latency (ms)},
+    xmin=0, xmax=11,
+    ymin=0, ymax=38,
+    grid=both,
+    grid style={line width=.1pt, draw=gray!20},
+    major grid style={line width=.2pt, draw=gray!50},
+    legend pos=north west,
+    legend cell align={left},
+    font=\footnotesize
+]
+
+\addplot+[
+    color=blue!70!black,
+    mark=square*,
+    thick,
+    error bars/.cd,
+        y dir=both,
+        y explicit
+] coordinates {
+    (0.001, 0.072) +- (0.012, 0.012)
+    (0.064, 0.276) +- (0.035, 0.035)
+    (0.512, 1.991) +- (0.142, 0.142)
+    (1.000, 3.424) +- (0.218, 0.218)
+    (5.000, 17.086) +- (0.865, 0.865)
+    (10.000, 32.943) +- (1.450, 1.450)
+};
+\addlegendentry{Web Crypto SHA-256 Latency ($\mu \pm \sigma$)}
+
+\end{axis}
+\end{tikzpicture}
+\caption{Client-side SHA-256 hashing latency across payload sizes up to 10~MB ($N=30$ trials per size, error bars indicate $\pm 1\sigma$).}
+\label{fig:hashing_chart}
+\end{figure}
+
 \subsection{Experiment 3: Smart Contract Gas Consumption Profile}
-Exact gas usage metrics extracted from confirmed EVM transaction receipts are detailed in Table~\ref{tab:gas_profile}.
+Exact gas usage metrics extracted from confirmed EVM transaction receipts are detailed in Table~\ref{tab:gas_profile} and visualized in Fig.~\ref{fig:gas_chart}.
 
 \begin{table}[h]
 \caption{Smart Contract Gas Consumption Profile}
@@ -230,6 +357,44 @@ Contract Deployment & 2,474,757 & 0.049495 ETH & \$123.74 \\
 \bottomrule
 \end{tabular}
 \end{table}
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+    xbar,
+    width=8.4cm,
+    height=5.0cm,
+    xlabel={Gas Units Consumed},
+    symbolic y coords={
+        {verifyHash (FREE)},
+        {revokeCollab},
+        {authorizeCollab},
+        {addVersion (v2)},
+        {registerFile (v1)}
+    },
+    ytick=data,
+    nodes near coords,
+    nodes near coords align={horizontal},
+    point meta=rawx,
+    font=\footnotesize,
+    xmin=0, xmax=440000,
+    bar width=8pt,
+    grid=major,
+    grid style={dashed, gray!30}
+]
+\addplot[fill=purple!60!black, draw=purple!90!black] coordinates {
+    (354375,{registerFile (v1)})
+    (224845,{addVersion (v2)})
+    (97970,{authorizeCollab})
+    (38417,{revokeCollab})
+    (0,{verifyHash (FREE)})
+};
+\end{axis}
+\end{tikzpicture}
+\caption{Gas consumption across on-chain operations: updates (\texttt{addVersion}) achieve a 36.5\% gas saving, while verification consumes 0 gas.}
+\label{fig:gas_chart}
+\end{figure}
 
 \textbf{Arithmetic Gas Check:} Updating an existing file (\texttt{addVersion}) requires 224,845 gas, compared to 354,375 gas for initial registration:
 \begin{equation}
@@ -279,10 +444,42 @@ Financial Cost (10 MB File) & \$0.00 & Exceeds Block Cap & \$5.75 (Gas+Pin) & $<
 \end{tabular}
 \end{table*}
 
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+    ybar,
+    width=8.4cm,
+    height=4.8cm,
+    ylabel={Verification Latency (ms)},
+    symbolic x coords={Centralized, NaiveOnChain, IPFS+Chain, MerkleBatch, BlockSure},
+    xtick=data,
+    x tick label style={rotate=25, anchor=east, font=\scriptsize},
+    ymin=0, ymax=2200,
+    font=\footnotesize,
+    bar width=14pt,
+    grid=major,
+    grid style={dashed, gray!30},
+    nodes near coords,
+    every node near coord/.append style={font=\tiny, anchor=south}
+]
+\addplot[fill=teal!60!black, draw=teal!90!black] coordinates {
+    (Centralized, 25)
+    (NaiveOnChain, 32)
+    (IPFS+Chain, 1850)
+    (MerkleBatch, 85)
+    (BlockSure, 23)
+};
+\end{axis}
+\end{tikzpicture}
+\caption{End-to-end verification query latency comparison across paradigms: BlockSure achieves parity with centralized systems while eliminating third-party trust.}
+\label{fig:latency_comparison}
+\end{figure}
+
 \subsection{Critical Performance Insights}
 \textbf{1. The $O(1)$ Gas Barrier vs. Client RAM:} Storing file data directly into EVM storage slots (\texttt{SSTORE}) costs 20,000 gas per 32 bytes ($\approx 625,000$ gas/KB). A 10~MB file would consume $6.25 \times 10^9$ gas, exceeding the 30M block gas limit by 208 times. BlockSure anchors only the 32-byte digest, making smart contract gas strictly $O(1)$ with respect to file size. Practical file size limits are determined by browser memory and V8 \texttt{ArrayBuffer} boundaries (~1--2~GB).
 
-\textbf{2. Latency Parity:} IPFS hybrids suffer from multi-hop Distributed Hash Table (DHT) lookup delays (850--3,200~ms). BlockSure achieves sub-20~ms query latency on local RPC, achieving speed parity with centralized REST APIs while eliminating server-side trust.
+\textbf{2. Latency Parity:} IPFS hybrids suffer from multi-hop Distributed Hash Table (DHT) lookup delays (850--3,200~ms, Fig.~\ref{fig:latency_comparison}). BlockSure achieves sub-20~ms query latency on local RPC, achieving speed parity with centralized REST APIs while eliminating server-side trust.
 
 \textbf{3. Justification of RBAC Overhead:} Initial registration in BlockSure consumes 354,375 gas compared to ~115,000 gas for basic CID notarization. This overhead establishes the on-chain dynamic collaborator mapping and provenance arrays. This investment pays off with a 36.5\% gas reduction on version updates and a 100.0\% rejection rate against unauthorized overwrite attempts.
 
