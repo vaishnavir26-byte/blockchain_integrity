@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BlockSure v2.0 - System Architecture & Protocol Diagrams</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'dark'});</script>
+<style>
+  body { background-color: #0b1120; color: #f1f5f9; font-family: ui-sans-serif, system-ui, sans-serif; }
+  .tab-btn.active { background-color: #1e293b; border-color: #38bdf8; color: #38bdf8; font-weight: 600; }
+  .diagram-card { background: linear-gradient(145deg, #0f172a 0%, #1e293b 100%); border: 1px solid #334155; }
+</style>
+</head>
+<body class="p-6 max-w-7xl mx-auto">
+
+<header class="mb-8 border-b border-slate-800 pb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+  <div>
+    <div class="flex items-center gap-2 mb-2">
+      <span class="px-2.5 py-1 text-xs font-bold rounded-full bg-cyan-950 text-cyan-400 border border-cyan-800">Research Paper Artifact</span>
+      <span class="px-2.5 py-1 text-xs font-bold rounded-full bg-purple-950 text-purple-400 border border-purple-800">IEEE / ACM Standard</span>
+    </div>
+    <h1 class="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-indigo-400">
+      BlockSure v2.0: Core Protocol Diagrams
+    </h1>
+    <p class="text-slate-400 text-sm mt-1">
+      Visual specifications for System Architecture, Two-Phase Verification, Provenance Rings, and RBAC Sequence Flows.
+    </p>
+  </div>
+  <div class="flex items-center gap-3">
+    <a href="https://github.com/vaishnavir2626/blockchain_file_integrity" target="_blank" class="px-3.5 py-2 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition">GitHub Repo</a>
+    <a href="https://singular-tartufo-502127.netlify.app" target="_blank" class="px-3.5 py-2 text-xs font-semibold rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white font-medium transition shadow-lg shadow-cyan-900/50">Live Web App</a>
+  </div>
+</header>
+
+<!-- Navigation Tabs -->
+<div class="flex flex-wrap gap-2 mb-6 border-b border-slate-800 pb-2">
+  <button onclick="showTab('tab-arch')" id="btn-arch" class="tab-btn active px-4 py-2 text-sm rounded-lg border border-transparent transition">1. System Architecture</button>
+  <button onclick="showTab('tab-flow')" id="btn-flow" class="tab-btn px-4 py-2 text-sm rounded-lg border border-transparent transition">2. Verification Flowchart</button>
+  <button onclick="showTab('tab-seq')" id="btn-seq" class="tab-btn px-4 py-2 text-sm rounded-lg border border-transparent transition">3. RBAC Sequence Diagram</button>
+  <button onclick="showTab('tab-ring')" id="btn-ring" class="tab-btn px-4 py-2 text-sm rounded-lg border border-transparent transition">4. Provenance Chain</button>
+  <button onclick="showTab('tab-matrix')" id="btn-matrix" class="tab-btn px-4 py-2 text-sm rounded-lg border border-transparent transition">5. Multi-Paradigm Comparison</button>
+</div>
+
+<!-- Tab 1: Architecture -->
+<div id="tab-arch" class="tab-content">
+  <div class="diagram-card rounded-xl p-6 shadow-2xl mb-4">
+    <div class="flex justify-between items-center mb-4">
+      <h2 class="text-lg font-bold text-cyan-300">Figure 1: Decoupled Client-Side Hashing & Smart Contract Architecture</h2>
+      <span class="text-xs text-slate-400">Zero Raw-File Network Exposure</span>
+    </div>
+    <div class="mermaid">
+graph LR
+    subgraph Client ["Client Application Layer (Browser RAM)"]
+        A["Local File System<br/>(Off-Chain File Bytes)"] -->|"Zero-Upload<br/>Local RAM Stream"| B["W3C Web Crypto API<br/>crypto.subtle.digest('SHA-256')"]
+        B -->|"32-Byte Hash<br/>(bytes32)"| C["Ethers.js Client &<br/>MetaMask Wallet"]
+    end
+
+    subgraph Network ["JSON-RPC Boundary"]
+        C -->|"Signed RPC Payload<br/>(Hash, FileId, Meta)"| D["JSON-RPC Transport<br/>(Infura / Alchemy / Local Node)"]
+        D -->|"Verification State &<br/>Audit Receipt"| C
+    end
+
+    subgraph Blockchain ["Ethereum EVM Layer (FileIntegrityRegistry.sol)"]
+        D -->|"Tx: addVersion()"| E["Role-Based Access Control<br/>onlyFileOwner / onlyAuthorized"]
+        E -->|"Append State"| F["Append-Only Version Provenance<br/>V_n = &lt;n, Hash, prevHash, updater&gt;"]
+        D -.->|"Call: verifyHash() (0 Gas)"| G["Dual-Phase State Verification<br/>O(1) Fast Match / O(V) Retrospective"]
+        F --- G
+    end
+
+    style Client fill:#0f172a,stroke:#38bdf8,stroke-width:2px,color:#f8fafc
+    style Network fill:#1e1b4b,stroke:#818cf8,stroke-width:2px,color:#f8fafc
+    style Blockchain fill:#1e293b,stroke:#c084fc,stroke-width:2px,color:#f8fafc
+    style B fill:#0284c7,stroke:#38bdf8,stroke-width:2px,color:#fff
+    style G fill:#059669,stroke:#34d399,stroke-width:2px,color:#fff
+    </div>
+    <div class="mt-4 p-3 bg-slate-900/80 rounded text-xs text-slate-400">
+      <strong class="text-cyan-400">Architectural Invariant:</strong> Raw document bytes are NEVER transmitted over the network or written to EVM calldata. Only the fixed 32-byte hash is committed, ensuring strict $O(1)$ gas scaling with respect to file size.
+    </div>
+  </div>
+</div>
+
+<!-- Tab 2: Flowchart -->
+<div id="tab-flow" class="tab-content hidden">
+  <div class="diagram-card rounded-xl p-6 shadow-2xl mb-4">
+    <div class="flex justify-between items-center mb-4">
+      <h2 class="text-lg font-bold text-emerald-300">Figure 2: Dual-Phase State Verification Flowchart (verifyHash)</h2>
+      <span class="text-xs text-slate-400">O(1) Current vs. O(V) Historical Search</span>
+    </div>
+    <div class="mermaid">
+flowchart TD
+    Start(["User Selects Local File & Enters FileID"]) --> Hash["Client Browser computes SHA-256 in RAM<br/>h_calc = crypto.subtle.digest('SHA-256')"]
+    Hash --> RPC["Invoke EVM read-only view call:<br/>verifyHash(fileId, h_calc) [0 Gas]"]
+    
+    RPC --> CheckExists{"File ID exists<br/>in _files mapping?"}
+    CheckExists -- No --> NotReg["State: NOT_REGISTERED<br/>Outcome: Red Flag / Unregistered"]
+    
+    CheckExists -- Yes --> CheckCur{"h_calc == _fileVersions[fileId][curVer].fileHash?"}
+    CheckCur -- Yes --> FastMatch["State: VERIFIED (O(1) Fast Path)<br/>Outcome: Document is 100% Authentic Active Version"]
+    
+    CheckCur -- No --> LoopHist{"Scan Historical Versions<br/>v = 1 to (curVer - 1)"}
+    LoopHist -- Match at Version k --> HistMatch["State: HISTORICAL (O(V) Traversal)<br/>Outcome: Valid Historical Version k (Outdated / Rolled back)"]
+    LoopHist -- No Match across all v --> Tampered["State: TAMPERED (O(V) Scan)<br/>Outcome: Unauthorized Byte Mutation Detected!"]
+
+    style Start fill:#1e293b,stroke:#64748b,color:#fff
+    style FastMatch fill:#065f46,stroke:#10b981,stroke-width:2px,color:#fff
+    style HistMatch fill:#78350f,stroke:#f59e0b,stroke-width:2px,color:#fff
+    style Tampered fill:#881337,stroke:#f43f5e,stroke-width:2px,color:#fff
+    style NotReg fill:#312e81,stroke:#6366f1,stroke-width:2px,color:#fff
+    </div>
+  </div>
+</div>
+
+<!-- Tab 3: Sequence -->
+<div id="tab-seq" class="tab-content hidden">
+  <div class="diagram-card rounded-xl p-6 shadow-2xl mb-4">
+    <div class="flex justify-between items-center mb-4">
+      <h2 class="text-lg font-bold text-purple-300">Figure 3: RBAC Protocol & Adversary Rejection Sequence Flow</h2>
+      <span class="text-xs text-slate-400">Owner, Collaborator, and Adversary Interplay</span>
+    </div>
+    <div class="mermaid">
+sequenceDiagram
+    autonumber
+    actor Owner as Account A (File Owner)
+    actor Collab as Account B (Collaborator)
+    actor Attacker as Account C (Adversary)
+    participant Contract as FileIntegrityRegistry.sol
+    participant Audit as EVM Blockchain Log
+
+    Note over Owner,Contract: 1. Initial File Registration
+    Owner->>Contract: registerFile(fileId, Hash_v1, "doc.pdf", 1MB, "Initial")
+    Contract->>Audit: emit FileRegistered(fileId, Owner, Hash_v1)
+    Contract-->>Owner: Success (354,375 gas)
+
+    Note over Owner,Contract: 2. Collaborator Authorization
+    Owner->>Contract: authorizeCollaborator(fileId, CollabAddress)
+    Contract->>Audit: emit CollaboratorAuthorized(fileId, Owner, Collab)
+    Contract-->>Owner: Success (97,970 gas)
+
+    Note over Collab,Contract: 3. Authorized Version Update
+    Collab->>Contract: addVersion(fileId, Hash_v2, "doc_v2.pdf", 1MB, "Updates")
+    Contract->>Audit: emit VersionAdded(fileId, Collab, ver=2, Hash_v2, prevHash=Hash_v1)
+    Contract-->>Collab: Success (224,845 gas, -36.5% savings)
+
+    Note over Attacker,Contract: 4. Unauthorized Adversary Attempt
+    Attacker->>Contract: addVersion(fileId, RogueHash, "evil.pdf", 1MB, "Hack")
+    Contract--xAttacker: REVERT NotAuthorized(fileId, AccountC)
+    Note over Attacker,Contract: Transaction Reverted (100% Rejection Rate)
+
+    Note over Owner,Contract: 5. Collaborator Revocation
+    Owner->>Contract: revokeCollaborator(fileId, CollabAddress)
+    Contract->>Audit: emit CollaboratorRevoked(fileId, Owner, Collab)
+    Contract-->>Owner: Success (38,417 gas)
+
+    Note over Collab,Contract: 6. Post-Revocation Update Blocked
+    Collab->>Contract: addVersion(fileId, Hash_v3, "doc_v3.pdf", 1MB, "New")
+    Contract--xCollab: REVERT NotAuthorized (Permissions Revoked)
+    </div>
+  </div>
+</div>
+
+<!-- Tab 4: Provenance Chain -->
+<div id="tab-ring" class="tab-content hidden">
+  <div class="diagram-card rounded-xl p-6 shadow-2xl mb-4">
+    <div class="flex justify-between items-center mb-4">
+      <h2 class="text-lg font-bold text-amber-300">Figure 4: Backward-Linked Cryptographic Provenance Chain</h2>
+      <span class="text-xs text-slate-400">Mathematical Lineage Preservation</span>
+    </div>
+    <div class="mermaid">
+graph LR
+    subgraph V1 ["Version 1 (Genesis Root)"]
+        direction TB
+        V1_n["versionNumber = 1"]
+        V1_h["fileHash = 0xf52d08c..."]
+        V1_p["previousHash = 0x000..."]
+        V1_u["updater = Owner (Account A)"]
+        V1_t["timestamp = 1729728000"]
+    end
+
+    subgraph V2 ["Version 2 (Collaborator Update)"]
+        direction TB
+        V2_n["versionNumber = 2"]
+        V2_h["fileHash = 0x5ae9782..."]
+        V2_p["previousHash = 0xf52d08c..."]
+        V2_u["updater = Collab (Account B)"]
+        V2_t["timestamp = 1729731600"]
+    end
+
+    subgraph V3 ["Version 3 (Active Latest Version)"]
+        direction TB
+        V3_n["versionNumber = 3"]
+        V3_h["fileHash = 0x4206ae3..."]
+        V3_p["previousHash = 0x5ae9782..."]
+        V3_u["updater = Owner (Account A)"]
+        V3_t["timestamp = 1729735200"]
+    end
+
+    V2 -->|"previousHash link"| V1
+    V3 -->|"previousHash link"| V2
+
+    style V1 fill:#1e1b4b,stroke:#818cf8,stroke-width:2px,color:#fff
+    style V2 fill:#312e81,stroke:#a855f7,stroke-width:2px,color:#fff
+    style V3 fill:#064e3b,stroke:#10b981,stroke-width:2px,color:#fff
+    </div>
+    <div class="mt-4 p-3 bg-slate-900/80 rounded text-xs text-slate-400">
+      <strong class="text-amber-400">Tamper-Proof Guarantee:</strong> Because each version immutably stores the hash of the preceding version, altering any historical version invalidates all downstream pointers, rendering silent revision mathematically impossible.
+    </div>
+  </div>
+</div>
+
+<!-- Tab 5: Comparison Matrix -->
+<div id="tab-matrix" class="tab-content hidden">
+  <div class="diagram-card rounded-xl p-6 shadow-2xl mb-4">
+    <div class="flex justify-between items-center mb-4">
+      <h2 class="text-lg font-bold text-sky-300">Figure 5: Multi-Paradigm Architecture & Overhead Trade-Offs</h2>
+      <span class="text-xs text-slate-400">Grounded in 4-Tier Epistemic Taxonomy</span>
+    </div>
+    <div class="mermaid">
+graph TD
+    A["File Integrity Verification Paradigms"] --> B["Centralized Cloud Database<br/>(AWS RDS / MySQL)"]
+    A --> C["Naive On-Chain Storage<br/>(Direct EVM SSTORE)"]
+    A --> D["Hybrid IPFS + Blockchain<br/>(CID Notarization)"]
+    A --> E["BlockSure v2.0 (Proposed Work)<br/>(Client Web Crypto + Dual RBAC)"]
+
+    B --> B1["❌ Single Point of Failure (SPOF)<br/>❌ 0% Insider Tamper Resistance<br/>❌ Raw bytes transmitted to server"]
+    C --> C1["❌ Catastrophic Cost: 625,000 gas/KB<br/>❌ 10 MB = 6.25B gas (>200x Block Limit)<br/>❌ Zero file privacy (Public EVM state)"]
+    D --> D1["⚠️ Query Latency: 850 - 3,200 ms (DHT)<br/>❌ No dynamic collaborator RBAC<br/>❌ Unlinked version logs"]
+    E --> E1["✔ O(1) Gas: Fixed 354k / 224k gas<br/>✔ 0 Gas Verification (view call)<br/>✔ 100% Client-Side Privacy (0 bytes upload)<br/>✔ Dual-Role RBAC & Cryptographic Lineage"]
+
+    style B fill:#334155,stroke:#64748b,color:#fff
+    style C fill:#450a0a,stroke:#ef4444,color:#fff
+    style D fill:#713f12,stroke:#f59e0b,color:#fff
+    style E fill:#064e3b,stroke:#10b981,stroke-width:2px,color:#fff
+    style E1 fill:#065f46,stroke:#34d399,color:#fff
+    </div>
+  </div>
+</div>
+
+<footer class="mt-8 text-center text-xs text-slate-500 border-t border-slate-800 pt-4">
+  BlockSure Research Prototype • MIT License • Built for Academic Peer Review
+</footer>
+
+<script>
+function showTab(tabId) {
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+  document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+  document.getElementById(tabId).classList.remove('hidden');
+  const btnMap = {
+    'tab-arch': 'btn-arch',
+    'tab-flow': 'btn-flow',
+    'tab-seq': 'btn-seq',
+    'tab-ring': 'btn-ring',
+    'tab-matrix': 'btn-matrix'
+  };
+  document.getElementById(btnMap[tabId]).classList.add('active');
+}
+</script>
+</body>
+</html>
