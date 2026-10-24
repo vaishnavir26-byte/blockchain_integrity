@@ -1,8 +1,8 @@
 # BlockSure: A Client-Side Privacy-Preserving Blockchain Architecture for File Integrity Verification, Append-Only Version Provenance, and Smart Contract-Enforced Update Authorization
 
-**Vaishnavi R.**  
+**Anonymous Author(s)**  
 *Department of Computer Science & Engineering*  
-*Repository:* [https://github.com/vaishnavir2626/blockchain_file_integrity](https://github.com/vaishnavir2626/blockchain_file_integrity)  
+*Double-Blind Peer Review Submission*  
 *Live Prototype:* [https://singular-tartufo-502127.netlify.app](https://singular-tartufo-502127.netlify.app)  
 
 ---
