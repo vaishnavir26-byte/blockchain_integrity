@@ -12,7 +12,7 @@
 \usepackage{multirow}
 \usepackage{tikz}
 \usepackage{pgfplots}
-\pgfplotsset{compat=1.18}
+\pgfplotsset{compat=newest}
 \usetikzlibrary{shapes.geometric, arrows.meta, positioning, calc, backgrounds, fit}
 
 \def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
@@ -90,39 +90,38 @@ BlockSure decouples file hashing from on-chain storage across four coordinated l
 \begin{figure*}[t]
 \centering
 \begin{tikzpicture}[
-    box/.style={rectangle, draw=blue!70!black, fill=blue!5, rounded corners=3pt, thick, align=center, font=\small},
-    secbox/.style={rectangle, draw=teal!70!black, fill=teal!5, rounded corners=3pt, thick, align=center, font=\small},
-    ethbox/.style={rectangle, draw=purple!70!black, fill=purple!5, rounded corners=3pt, thick, align=center, font=\small},
-    arrow/.style={-{Stealth[scale=1.1]}, thick, draw=gray!80!black},
-    darrow/.style={-{Stealth[scale=1.1]}, dashed, thick, draw=red!70!black}
+    box/.style={rectangle, draw=blue!70!black, fill=blue!5, rounded corners=3pt, thick, align=center, font=\footnotesize},
+    secbox/.style={rectangle, draw=teal!70!black, fill=teal!5, rounded corners=3pt, thick, align=center, font=\footnotesize},
+    ethbox/.style={rectangle, draw=purple!70!black, fill=purple!5, rounded corners=3pt, thick, align=center, font=\footnotesize},
+    arrow/.style={-{Stealth[scale=1.0]}, thick, draw=gray!80!black}
 ]
 
 % Client Side Container
-\draw[draw=blue!50!black, fill=blue!2, rounded corners=5pt, dashed, thick] (-0.3,-0.4) rectangle (5.2,5.2);
-\node[anchor=north west, font=\footnotesize\bfseries, color=blue!70!black] at (-0.1,5.1) {CLIENT APPLICATION LAYER (Zero Off-Device Upload)};
+\draw[draw=blue!50!black, fill=blue!2, rounded corners=4pt, dashed, thick] (-0.2,-0.2) rectangle (4.6,4.6);
+\node[anchor=north west, font=\scriptsize\bfseries, color=blue!70!black] at (0.0,4.4) {CLIENT LAYER (In-Memory RAM)};
 
-\node[box, minimum width=2.4cm, minimum height=0.9cm] (localfile) at (2.45,4.2) {\textbf{Local File System}\\(Off-Chain File Bytes)};
-\node[box, minimum width=4.6cm, minimum height=1.1cm, fill=blue!10] (webcrypto) at (2.45,2.7) {\textbf{Browser Web Crypto API}\\\texttt{crypto.subtle.digest("SHA-256")}\\(In-Memory RAM Hashing)};
-\node[box, minimum width=4.6cm, minimum height=0.9cm] (wallet) at (2.45,0.7) {\textbf{MetaMask / ethers.js Client}\\32-Byte \texttt{bytes32} Hash Digest};
+\node[box, minimum width=4.0cm, minimum height=0.7cm] (localfile) at (2.2,3.6) {Local File (Off-Chain Content)};
+\node[box, minimum width=4.0cm, minimum height=0.9cm, fill=blue!10] (webcrypto) at (2.2,2.3) {Web Crypto API (SHA-256)\\32-Byte Hash Generation};
+\node[box, minimum width=4.0cm, minimum height=0.7cm] (wallet) at (2.2,0.8) {MetaMask / Ethers.js Client};
 
-\draw[arrow] (localfile) -- node[right, font=\scriptsize, align=left] {Raw Bytes\\(Local RAM)} (webcrypto);
-\draw[arrow] (webcrypto) -- node[right, font=\scriptsize] {32-Byte Hash ($H$)} (wallet);
+\draw[arrow] (localfile) -- (webcrypto);
+\draw[arrow] (webcrypto) -- (wallet);
 
 % RPC Boundary
-\node[secbox, minimum width=2.2cm, minimum height=2.4cm] (rpc) at (7.3,2.45) {\textbf{JSON-RPC}\\\textbf{Transport}\\\scriptsize EIP-1193 Provider\\\scriptsize (Alchemy / Infura\\\scriptsize / Local Node)};
+\node[secbox, minimum width=2.0cm, minimum height=2.2cm] (rpc) at (6.5,2.2) {JSON-RPC\\Transport\\(EIP-1193)};
 
-\draw[arrow] (wallet) -| node[above, font=\scriptsize, pos=0.3] {Signed RPC Payload ($H$, meta)} (rpc.south);
-\draw[arrow] (rpc.north) |- node[above, font=\scriptsize, pos=0.7] {Verification Outcome (Match/Tamper)} (wallet.east);
+\draw[arrow] (wallet) -| (rpc.south);
+\draw[arrow] (rpc.north) |- (wallet.east);
 
 % Ethereum Smart Contract Container
-\draw[draw=purple!50!black, fill=purple!2, rounded corners=5pt, dashed, thick] (9.4,-0.4) rectangle (16.5,5.2);
-\node[anchor=north west, font=\footnotesize\bfseries, color=purple!70!black] at (9.6,5.1) {ETHEREUM SMART CONTRACT LAYER (\texttt{FileIntegrityRegistry.sol})};
+\draw[draw=purple!50!black, fill=purple!2, rounded corners=4pt, dashed, thick] (8.4,-0.2) rectangle (14.6,4.6);
+\node[anchor=north west, font=\scriptsize\bfseries, color=purple!70!black] at (8.6,4.4) {SMART CONTRACT LAYER (\texttt{FileIntegrityRegistry})};
 
-\node[ethbox, minimum width=6.5cm, minimum height=1.0cm, fill=purple!10] (rbac) at (12.95,4.1) {\textbf{Role-Based Access Control (RBAC)}\\\scriptsize \texttt{onlyFileOwner} $\mid$ \texttt{onlyAuthorized} $\mid$ \texttt{authorizeCollaborator()}};
-\node[ethbox, minimum width=6.5cm, minimum height=1.1cm] (lineage) at (12.95,2.45) {\textbf{Append-Only Version Provenance Chain}\\\scriptsize $\mathcal{V}_n = \langle n, H_n, t_n, H_{prev}, u_n \rangle \mid$ Backward Linked Pointers};
-\node[ethbox, minimum width=6.5cm, minimum height=1.0cm, fill=green!10, draw=green!60!black] (verify) at (12.95,0.7) {\textbf{Dual-Phase State Verification Engine}\\\scriptsize \texttt{verifyHash()}: $O(1)$ Current Match $\mid$ $O(V)$ Retrospective Scan (0 Gas)};
+\node[ethbox, minimum width=5.6cm, minimum height=0.8cm, fill=purple!10] (rbac) at (11.5,3.6) {Role-Based Access Control (RBAC)};
+\node[ethbox, minimum width=5.6cm, minimum height=0.9cm] (lineage) at (11.5,2.2) {Append-Only Version Provenance Chain};
+\node[ethbox, minimum width=5.6cm, minimum height=0.8cm, fill=green!10, draw=green!60!black] (verify) at (11.5,0.8) {State Verification Engine (0 Gas View)};
 
-\draw[arrow] (rpc.east) -- node[above, font=\scriptsize] {Tx: \texttt{addVersion()}} (lineage.west);
+\draw[arrow] (rpc.east) -- (lineage.west);
 \draw[arrow] (lineage) -- (rbac);
 \draw[arrow] (lineage) -- (verify);
 
@@ -153,36 +152,33 @@ where $u_n$ is the updater address, and $H_{\text{prev}}$ forms the cryptographi
 \begin{figure}[h]
 \centering
 \begin{tikzpicture}[
-    vbox/.style={rectangle, draw=purple!80!black, fill=purple!5, rounded corners=3pt, thick, align=center, font=\scriptsize, minimum width=2.4cm, minimum height=1.7cm},
-    arrow/.style={-{Stealth[scale=1.0]}, thick, draw=purple!80!black}
+    vbox/.style={rectangle, draw=purple!80!black, fill=purple!5, rounded corners=3pt, thick, align=center, font=\scriptsize, minimum width=2.3cm, minimum height=1.6cm},
+    arrow/.style={-{Stealth[scale=0.9]}, thick, draw=purple!80!black}
 ]
 
 \node[vbox] (v1) at (0,0) {
-    \textbf{Version 1 (Genesis)}\\
+    \textbf{Version 1}\\
     \texttt{version:} 1\\
     \texttt{fileHash:} $H(F_1)$\\
-    \texttt{prevHash:} \textbf{0x000...}\\
-    \texttt{updater:} Owner ($u_1$)
+    \texttt{prevHash:} \textbf{0x000...}
 };
 
-\node[vbox] (v2) at (3.0,0) {
-    \textbf{Version 2 (Update)}\\
+\node[vbox] (v2) at (2.8,0) {
+    \textbf{Version 2}\\
     \texttt{version:} 2\\
     \texttt{fileHash:} $H(F_2)$\\
-    \texttt{prevHash:} $H(F_1)$\\
-    \texttt{updater:} Collab ($u_2$)
+    \texttt{prevHash:} $H(F_1)$
 };
 
-\node[vbox] (v3) at (6.0,0) {
-    \textbf{Version 3 (Latest)}\\
+\node[vbox] (v3) at (5.6,0) {
+    \textbf{Version 3}\\
     \texttt{version:} 3\\
     \texttt{fileHash:} $H(F_3)$\\
-    \texttt{prevHash:} $H(F_2)$\\
-    \texttt{updater:} Owner ($u_1$)
+    \texttt{prevHash:} $H(F_2)$
 };
 
-\draw[arrow] (v2.west) -- node[above, font=\tiny] {$H_{\text{prev}} = H(F_1)$} (v1.east);
-\draw[arrow] (v3.west) -- node[above, font=\tiny] {$H_{\text{prev}} = H(F_2)$} (v2.east);
+\draw[arrow] (v2.west) -- node[above, font=\tiny] {$H(F_1)$} (v1.east);
+\draw[arrow] (v3.west) -- node[above, font=\tiny] {$H(F_2)$} (v2.east);
 
 \end{tikzpicture}
 \caption{Cryptographic backward-linked provenance chain in BlockSure: each subsequent version points immutably to the prior version's hash.}
@@ -298,40 +294,32 @@ Client-side latency was benchmarked using the Web Crypto API across $N=30$ repea
 \centering
 \begin{tikzpicture}
 \begin{axis}[
-    width=8.4cm,
-    height=5.2cm,
+    width=8.0cm,
+    height=4.8cm,
     xlabel={Payload Size (MB)},
     ylabel={Hashing Latency (ms)},
     xmin=0, xmax=11,
-    ymin=0, ymax=38,
+    ymin=0, ymax=36,
     grid=both,
     grid style={line width=.1pt, draw=gray!20},
     major grid style={line width=.2pt, draw=gray!50},
-    legend pos=north west,
-    legend cell align={left},
     font=\footnotesize
 ]
-
-\addplot+[
+\addplot[
     color=blue!70!black,
     mark=square*,
-    thick,
-    error bars/.cd,
-        y dir=both,
-        y explicit
+    thick
 ] coordinates {
-    (0.001, 0.072) +- (0.012, 0.012)
-    (0.064, 0.276) +- (0.035, 0.035)
-    (0.512, 1.991) +- (0.142, 0.142)
-    (1.000, 3.424) +- (0.218, 0.218)
-    (5.000, 17.086) +- (0.865, 0.865)
-    (10.000, 32.943) +- (1.450, 1.450)
+    (0.001, 0.072)
+    (0.064, 0.276)
+    (0.512, 1.991)
+    (1.000, 3.424)
+    (5.000, 17.086)
+    (10.000, 32.943)
 };
-\addlegendentry{Web Crypto SHA-256 Latency ($\mu \pm \sigma$)}
-
 \end{axis}
 \end{tikzpicture}
-\caption{Client-side SHA-256 hashing latency across payload sizes up to 10~MB ($N=30$ trials per size, error bars indicate $\pm 1\sigma$).}
+\caption{Client-side SHA-256 hashing latency across payload sizes up to 10~MB ($N=30$ trials per payload size).}
 \label{fig:hashing_chart}
 \end{figure}
 
@@ -363,32 +351,25 @@ Contract Deployment & 2,474,757 & 0.049495 ETH & \$123.74 \\
 \begin{tikzpicture}
 \begin{axis}[
     xbar,
-    width=8.4cm,
-    height=5.0cm,
+    width=8.0cm,
+    height=4.6cm,
     xlabel={Gas Units Consumed},
-    symbolic y coords={
-        {verifyHash (FREE)},
-        {revokeCollab},
-        {authorizeCollab},
-        {addVersion (v2)},
-        {registerFile (v1)}
-    },
-    ytick=data,
+    ytick={1, 2, 3, 4, 5},
+    yticklabels={\texttt{verifyHash}, \texttt{revokeCollab}, \texttt{authCollab}, \texttt{addVersion}, \texttt{registerFile}},
     nodes near coords,
     nodes near coords align={horizontal},
-    point meta=rawx,
-    font=\footnotesize,
-    xmin=0, xmax=440000,
+    font=\scriptsize,
+    xmin=0, xmax=420000,
     bar width=8pt,
     grid=major,
     grid style={dashed, gray!30}
 ]
 \addplot[fill=purple!60!black, draw=purple!90!black] coordinates {
-    (354375,{registerFile (v1)})
-    (224845,{addVersion (v2)})
-    (97970,{authorizeCollab})
-    (38417,{revokeCollab})
-    (0,{verifyHash (FREE)})
+    (0, 1)
+    (38417, 2)
+    (97970, 3)
+    (224845, 4)
+    (354375, 5)
 };
 \end{axis}
 \end{tikzpicture}
@@ -449,26 +430,26 @@ Financial Cost (10 MB File) & \$0.00 & Exceeds Block Cap & \$5.75 (Gas+Pin) & $<
 \begin{tikzpicture}
 \begin{axis}[
     ybar,
-    width=8.4cm,
-    height=4.8cm,
+    width=8.0cm,
+    height=4.6cm,
     ylabel={Verification Latency (ms)},
-    symbolic x coords={Centralized, NaiveOnChain, IPFS+Chain, MerkleBatch, BlockSure},
-    xtick=data,
+    xtick={1, 2, 3, 4, 5},
+    xticklabels={Centralized, Naive-Chain, IPFS+Chain, Merkle-Batch, BlockSure},
     x tick label style={rotate=25, anchor=east, font=\scriptsize},
     ymin=0, ymax=2200,
-    font=\footnotesize,
-    bar width=14pt,
+    font=\scriptsize,
+    bar width=12pt,
     grid=major,
     grid style={dashed, gray!30},
     nodes near coords,
     every node near coord/.append style={font=\tiny, anchor=south}
 ]
 \addplot[fill=teal!60!black, draw=teal!90!black] coordinates {
-    (Centralized, 25)
-    (NaiveOnChain, 32)
-    (IPFS+Chain, 1850)
-    (MerkleBatch, 85)
-    (BlockSure, 23)
+    (1, 25)
+    (2, 32)
+    (3, 1850)
+    (4, 85)
+    (5, 23)
 };
 \end{axis}
 \end{tikzpicture}
