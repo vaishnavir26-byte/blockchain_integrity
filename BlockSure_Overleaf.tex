@@ -1,47 +1,67 @@
-\documentclass[conference]{IEEEtran}
-\IEEEoverridecommandlockouts
+\documentclass[10pt,conference,letterpaper]{IEEEtran}
+
+% =========================================================================
+% OFFICIAL IEEE CONFERENCE PACKAGES
+% =========================================================================
 \usepackage{cite}
 \usepackage{amsmath,amssymb,amsfonts}
 \usepackage{algorithmic}
+\usepackage{algorithm}
 \usepackage{graphicx}
 \usepackage{textcomp}
 \usepackage{xcolor}
 \usepackage{booktabs}
-\usepackage{array}
-\usepackage{url}
+\usepackage{tabularx}
 \usepackage{multirow}
+\usepackage{url}
 \usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, calc, fit, backgrounds}
 \usepackage{pgfplots}
-\pgfplotsset{compat=newest}
-\usetikzlibrary{shapes.geometric, arrows.meta, positioning, calc, backgrounds, fit}
+\pgfplotsset{compat=1.18}
 
-\def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
-    T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
+% Custom column types for clean table wrapping
+\newcolumntype{Y}{>{\centering\arraybackslash}X}
+\newcolumntype{L}{>{\raggedright\arraybackslash}X}
+
+% Correct bad hyphenation here
+\hyphenation{op-ti-cal net-works semi-conduc-tor Block-Sure}
 
 \begin{document}
 
+% =========================================================================
+% TITLE & AUTHOR BLOCK (Exact IEEE Conference Format)
+% =========================================================================
 \title{BlockSure: A Client-Side Privacy-Preserving Blockchain Architecture for File Integrity Verification, Append-Only Version Provenance, and Smart Contract-Enforced Update Authorization}
 
-\author{\IEEEauthorblockN{Anonymous Author(s)}
-\IEEEauthorblockA{\textit{Department of Computer Science and Engineering} \\
-\textit{Double-Blind Peer Review Submission} \\
-\textit{Live Web Application: https://singular-tartufo-502127.netlify.app}}
+\author{
+    \IEEEauthorblockN{Anonymous Author(s)}
+    \IEEEauthorblockA{
+        \textit{Department of Computer Science and Engineering} \\
+        \textit{Double-Blind Peer Review Submission} \\
+        Live Web Application: \url{https://singular-tartufo-502127.netlify.app}
+    }
 }
 
 \maketitle
 
+% =========================================================================
+% ABSTRACT & INDEX TERMS
+% =========================================================================
 \begin{abstract}
 Digital documents in distributed cloud networks are persistently vulnerable to silent corruption, malicious tampering, and unauthorized administrative overwrites. Conventional file integrity monitoring (FIM) systems rely on centralized Certificate Authorities or relational checksum catalogs, creating catastrophic single points of failure (SPoF) and insider repudiation risks. Conversely, naive on-chain storage scales linearly at 625,000 gas per kilobyte, rendering direct storage financially non-viable. Furthermore, existing decentralized solutions predominantly treat files as immutable, static artifacts, failing to integrate client-side privacy-preserving hashing, granular update authorization, and multi-version provenance into a single framework.
 
-This paper presents \textbf{BlockSure}, a hybrid decentralized architecture that decouples content computation from cryptographic attestation. Using the browser-native W3C Web Crypto API, 256-bit SHA-256 fingerprints are calculated entirely within client RAM without transmitting raw bytes off-device. These fingerprints are registered into an Ethereum Virtual Machine (EVM) smart contract (\texttt{FileIntegrityRegistry.sol}) that records backward-linked provenance pointers (\texttt{previousHash}) and enforces on-chain Role-Based Access Control (RBAC). In our controlled empirical evaluation of 20 test files across 7 mutation categories, BlockSure demonstrated a 100.0\% tamper detection rate while strictly preserving the filename invariance property. Hardware-accelerated client hashing achieved sustained throughputs between 220 and 303~MB/s. On-chain benchmarking confirmed that read-only verification queries consume 0 transaction gas, while version updates consume 224,845 gas---a measured 36.5\% reduction relative to initial registration (354,375 gas). We provide an epistemic multi-tier comparative benchmark against centralized databases, naive on-chain storage, IPFS hybrids, and Merkle tree anchoring, demonstrating that BlockSure provides enterprise-grade integrity auditing with zero raw-file leakage.
+This paper presents BlockSure, a hybrid decentralized architecture that decouples content computation from cryptographic attestation. Using the browser-native W3C Web Crypto API, 256-bit SHA-256 fingerprints are calculated entirely within client RAM without transmitting raw bytes off-device. These fingerprints are registered into an Ethereum Virtual Machine (EVM) smart contract (\texttt{FileIntegrityRegistry.sol}) that records backward-linked provenance pointers (\texttt{previousHash}) and enforces on-chain Role-Based Access Control (RBAC). In our controlled empirical evaluation of 20 test files across 7 mutation categories, BlockSure demonstrated a 100.0\% tamper detection rate while strictly preserving the filename invariance property. Hardware-accelerated client hashing achieved sustained throughputs between 220 and 303~MB/s. On-chain benchmarking confirmed that read-only verification queries consume 0 transaction gas, while version updates consume 224,845 gas---a measured 36.5\% reduction relative to initial registration (354,375 gas). We provide an epistemic multi-tier comparative benchmark against centralized databases, naive on-chain storage, IPFS hybrids, and Merkle tree anchoring, demonstrating that BlockSure provides enterprise-grade integrity auditing with zero raw-file leakage.
 \end{abstract}
 
 \begin{IEEEkeywords}
 Blockchain, File Integrity, Smart Contracts, Data Provenance, SHA-256, Access Control, Ethereum, Client-Side Privacy.
 \end{IEEEkeywords}
 
+% =========================================================================
+% SECTION I: INTRODUCTION
+% =========================================================================
 \section{Introduction}
-Digital assets such as legal contracts, medical archives, financial ledgers, and firmware binaries form the backbone of modern data-driven enterprises. Despite widespread adoption of Transport Layer Security (TLS) and disk-level encryption, files at rest remain highly susceptible to bit rot, ransomware injection, and malicious alteration by privileged system administrators.
+Digital assets such as legal contracts, medical archives, financial ledgers, and firmware binaries form the backbone of modern data-driven enterprises. Despite widespread adoption of Transport Layer Security (TLS) and disk-level encryption, files at rest remain highly susceptible to bit rot, ransomware injection, and malicious alteration by privileged system administrators~\cite{puthal2018}.
 
 Traditional File Integrity Monitoring (FIM) systems rely on local checksum catalogs (e.g., Tripwire, OSSEC) or cloud databases. These architectures suffer from three critical flaws:
 \begin{enumerate}
@@ -58,201 +78,198 @@ To address these vulnerabilities, this research investigates four core Research 
     \item \textbf{RQ4 (Scalability):} How does client hashing scale across expanding file payloads, and can read verifications achieve zero network gas fees?
 \end{itemize}
 
+% =========================================================================
+% SECTION II: RELATED WORK
+% =========================================================================
 \section{Related Work}
-Existing blockchain integrity literature typically dichotomizes into static integrity notarization or heavyweight provenance graphs. As shown in Table~\ref{tab:lit_comparison}, existing solutions leave significant research gaps.
+Existing blockchain integrity literature typically dichotomizes into static integrity notarization or heavyweight provenance graphs~\cite{steichen2018}. As shown in Table~\ref{tab:related_work}, existing solutions leave significant research gaps.
 
 \begin{table*}[t]
-\caption{Literature Review and Research Gap Analysis}
-\label{tab:lit_comparison}
 \centering
-\begin{tabular}{lp{1.8cm}p{2.3cm}p{2.8cm}p{2.3cm}p{4.2cm}}
+\caption{Literature Review and Research Gap Analysis}
+\label{tab:related_work}
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\begin{tabularx}{\textwidth}{p{2.6cm} p{1.6cm} p{2.2cm} p{2.5cm} p{1.8cm} X}
 \toprule
 \textbf{Reference} & \textbf{Hash Algo} & \textbf{Network} & \textbf{Smart Contract RBAC} & \textbf{Version Lineage} & \textbf{Identified Limitations} \\
 \midrule
-Wang et al. (2018) \cite{wang2018} & SHA-256 & Private Ethereum & Audit only (No RBAC) & Static (None) & No dynamic update permissions; single version only \\
-Liang et al. (2017) \cite{liang2017} & SHA-256 & OpenChain & User-level & Graph-based & Prohibitive latency traversing deep provenance graphs \\
-Gaetani et al. (2017) \cite{gaetani2017} & MD5/SHA-1 & Private Blockchain & Basic logic & None & Cryptographically weak hashes; centralized backend \\
-Yue et al. (2021) \cite{yue2021} & SHA-256 & Consortium & Identity-based audit & None & Heavy key-escrow dependencies; no version chaining \\
-Li et al. (2020) \cite{li2020} & SHA-256 & Ethereum (Rinkeby) & Auditor role only & Partial & Focused on cloud auditing; no collaborator delegation \\
-Ramachandran et al. (2018) \cite{ramachandran2018} & SHA-256 & Ethereum & Smart contract logic & Linked array & Excessive gas consumption on deep lineage trees \\
-Chen et al. (2019) \cite{chen2019} & Keccak-256 & Hyperledger Fabric & Channel-based & None & Heavy permissioned infrastructure requirements \\
-Zhang et al. (2020) \cite{zhang2020} & SHA-256 & Ethereum Testnet & Owner only & Single version & Lacks multi-party collaborator authorization \\
-Nizamuddin et al. (2019) \cite{nizamuddin2019} & IPFS multihash & Ethereum Mainnet & Single Owner & Separate CIDs & High DHT lookup latency; unlinked version logs \\
+Wang et al. (2018)~\cite{wang2018} & SHA-256 & Private Ethereum & Audit only (No RBAC) & Static (None) & No dynamic update permissions; single version only \\
+Liang et al. (2017)~\cite{liang2017} & SHA-256 & OpenChain & User-level & Graph-based & Prohibitive latency traversing deep provenance graphs \\
+Gaetani et al. (2017)~\cite{gaetani2017} & MD5/SHA-1 & Private Blockchain & Basic logic & None & Cryptographically weak hashes; centralized backend \\
+Yue et al. (2021)~\cite{yue2021} & SHA-256 & Consortium & Identity-based audit & None & Heavy key-escrow dependencies; no version chaining \\
+Li et al. (2020)~\cite{li2020} & SHA-256 & Ethereum (Rinkeby) & Auditor role only & Partial & Focused on cloud auditing; no collaborator delegation \\
+Ramachandran et al. (2018)~\cite{ramachandran2018} & SHA-256 & Ethereum & Smart contract logic & Linked array & Excessive gas consumption on deep lineage trees \\
+Chen et al. (2019)~\cite{chen2019} & Keccak-256 & Hyperledger Fabric & Channel-based & None & Heavy permissioned infrastructure requirements \\
+Zhang et al. (2020)~\cite{zhang2020} & SHA-256 & Ethereum Testnet & Owner only & Single version & Lacks multi-party collaborator authorization \\
+Nizamuddin et al. (2019)~\cite{nizamuddin2019} & IPFS multihash & Ethereum Mainnet & Single Owner & Separate CIDs & High DHT lookup latency; unlinked version logs \\
 \midrule
 \textbf{BlockSure (This Work)} & \textbf{SHA-256} & \textbf{EVM / Hardhat} & \textbf{Dual-Role RBAC} & \textbf{Linked Ring} & \textbf{Integrated Zero-Fee Verification + Dual RBAC} \\
 \bottomrule
-\end{tabular}
+\end{tabularx}
 \end{table*}
 
+% =========================================================================
+% SECTION III: PROPOSED SYSTEM ARCHITECTURE
+% =========================================================================
 \section{Proposed System Architecture}
 BlockSure decouples file hashing from on-chain storage across four coordinated layers, illustrated in Fig.~\ref{fig:architecture}.
 
-\begin{figure*}[t]
+\begin{figure}[htbp]
 \centering
 \begin{tikzpicture}[
-    box/.style={rectangle, draw=blue!70!black, fill=blue!5, rounded corners=3pt, thick, align=center, font=\footnotesize},
-    secbox/.style={rectangle, draw=teal!70!black, fill=teal!5, rounded corners=3pt, thick, align=center, font=\footnotesize},
-    ethbox/.style={rectangle, draw=purple!70!black, fill=purple!5, rounded corners=3pt, thick, align=center, font=\footnotesize},
-    arrow/.style={-{Stealth[scale=1.0]}, thick, draw=gray!80!black}
+    font=\sffamily\scriptsize,
+    box/.style={rectangle, draw=black!70, fill=white, rounded corners=2pt, minimum width=3.0cm, minimum height=0.6cm, align=center},
+    layer/.style={draw=#1, dashed, thick, rounded corners=4pt, inner sep=5pt},
+    arr/.style={-{Stealth[length=2mm]}, thick, draw=black!80},
+    darr/.style={{Stealth[length=2mm]}-{Stealth[length=2mm]}, thick, draw=black!80}
 ]
 
-% Client Side Container
-\draw[draw=blue!50!black, fill=blue!2, rounded corners=4pt, dashed, thick] (-0.2,-0.2) rectangle (4.6,4.6);
-\node[anchor=north west, font=\scriptsize\bfseries, color=blue!70!black] at (0.0,4.4) {CLIENT LAYER (In-Memory RAM)};
+% Client Layer
+\node[box, fill=blue!10] (localfile) {Local File (Off-Chain Content)};
+\node[box, fill=purple!10, below=0.3cm of localfile] (cryptoapi) {Web Crypto API (SHA-256)\\32-Byte Hash Generation};
+\node[box, fill=blue!10, below=0.3cm of cryptoapi] (metamask) {MetaMask / Ethers.js Client};
 
-\node[box, minimum width=4.0cm, minimum height=0.7cm] (localfile) at (2.2,3.6) {Local File (Off-Chain Content)};
-\node[box, minimum width=4.0cm, minimum height=0.9cm, fill=blue!10] (webcrypto) at (2.2,2.3) {Web Crypto API (SHA-256)\\32-Byte Hash Generation};
-\node[box, minimum width=4.0cm, minimum height=0.7cm] (wallet) at (2.2,0.8) {MetaMask / Ethers.js Client};
+\node[layer=purple!70!blue, fit=(localfile) (cryptoapi) (metamask), label={[font=\bfseries\tiny, text=purple!80!black]above:CLIENT LAYER (In-Memory RAM)}] (clientbox) {};
 
-\draw[arrow] (localfile) -- (webcrypto);
-\draw[arrow] (webcrypto) -- (wallet);
+% Smart Contract Layer
+\node[box, fill=red!10, right=0.9cm of localfile] (rbac) {Role-Based Access Control (RBAC)};
+\node[box, fill=purple!10, below=0.3cm of rbac] (chain) {Append-Only Version Provenance Chain};
+\node[box, fill=green!15, below=0.3cm of chain] (engine) {State Verification Engine (0 Gas View)};
 
-% RPC Boundary
-\node[secbox, minimum width=2.0cm, minimum height=2.2cm] (rpc) at (6.5,2.2) {JSON-RPC\\Transport\\(EIP-1193)};
+\node[layer=red!70!black, fit=(rbac) (chain) (engine), label={[font=\bfseries\tiny, text=red!80!black]above:SMART CONTRACT LAYER (FileIntegrityRegistry)}] (contractbox) {};
 
-\draw[arrow] (wallet) -| (rpc.south);
-\draw[arrow] (rpc.north) |- (wallet.east);
+% Connections
+\draw[arr] (localfile) -- (cryptoapi);
+\draw[arr] (cryptoapi) -- (metamask);
+\draw[arr] (rbac) -- (chain);
+\draw[arr] (chain) -- (engine);
 
-% Ethereum Smart Contract Container
-\draw[draw=purple!50!black, fill=purple!2, rounded corners=4pt, dashed, thick] (8.4,-0.2) rectangle (14.6,4.6);
-\node[anchor=north west, font=\scriptsize\bfseries, color=purple!70!black] at (8.6,4.4) {SMART CONTRACT LAYER (\texttt{FileIntegrityRegistry})};
-
-\node[ethbox, minimum width=5.6cm, minimum height=0.8cm, fill=purple!10] (rbac) at (11.5,3.6) {Role-Based Access Control (RBAC)};
-\node[ethbox, minimum width=5.6cm, minimum height=0.9cm] (lineage) at (11.5,2.2) {Append-Only Version Provenance Chain};
-\node[ethbox, minimum width=5.6cm, minimum height=0.8cm, fill=green!10, draw=green!60!black] (verify) at (11.5,0.8) {State Verification Engine (0 Gas View)};
-
-\draw[arrow] (rpc.east) -- (lineage.west);
-\draw[arrow] (lineage) -- (rbac);
-\draw[arrow] (lineage) -- (verify);
+\draw[darr] (metamask) -- node[above, font=\tiny\bfseries, align=center] {JSON-RPC\\Transport\\(EIP-1193)} (engine);
 
 \end{tikzpicture}
 \caption{System Architecture of BlockSure: Decoupling client-side in-memory SHA-256 fingerprinting from on-chain RBAC and append-only version provenance.}
 \label{fig:architecture}
-\end{figure*}
+\end{figure}
 
 \subsection{Mathematical Formulations}
+
 \textbf{Definition 1 (Cryptographic Digest):} Let $F \in \{0, 1\}^*$ be the arbitrary-length sequence of bytes comprising a digital document. The fingerprint $H(F)$ is computed client-side using NIST FIPS 180-4 SHA-256:
 \begin{equation}
-    H(F) = \text{SHA-256}(F) \in \{0, 1\}^{256} \equiv \texttt{bytes32}
+H(F) = \text{SHA-256}(F) \in \{0, 1\}^{256} \equiv \mathtt{bytes32}
 \end{equation}
 By the second-preimage resistance of SHA-256, it is computationally infeasible to find $F' \neq F$ such that $H(F') = H(F)$.
 
-\textbf{Definition 2 (Provenance Version Linked-List):} A version record $\mathcal{V}_n$ for file identifier $ID$ is defined as the tuple:
+\textbf{Definition 2 (Provenance Version Linked-List):} A version record $V_n$ for file identifier $\mathit{ID}$ is defined as the tuple:
 \begin{equation}
-    \mathcal{V}_n = \langle n, H(F_n), \text{name}, \text{size}, t_n, H_{\text{prev}}, u_n, \text{note} \rangle
+V_n = \langle n, H(F_n), \mathit{name}, \mathit{size}, t_n, H_{\mathrm{prev}}, u_n, \mathit{note} \rangle
 \end{equation}
-where $u_n$ is the updater address, and $H_{\text{prev}}$ forms the cryptographic backward link (illustrated in Fig.~\ref{fig:provenance_chain}):
+where $u_n$ is the updater address, and $H_{\mathrm{prev}}$ forms the cryptographic backward link (illustrated in Fig.~\ref{fig:provenance_chain}):
 \begin{equation}
-    H_{\text{prev}} = \begin{cases} 
-    0x0^{64}, & \text{if } n = 1 \text{ (Genesis Root)} \\ 
-    H(F_{n-1}), & \text{if } n > 1 \text{ (Provenance Link)} 
-    \end{cases}
+H_{\mathrm{prev}} = 
+\begin{cases}
+\mathtt{0x0}^{64}, & \text{if } n = 1 \text{ (Genesis Root)} \\
+H(F_{n-1}), & \text{if } n > 1 \text{ (Provenance Link)}
+\end{cases}
 \end{equation}
 
-\begin{figure}[h]
+\begin{figure}[htbp]
 \centering
 \begin{tikzpicture}[
-    vbox/.style={rectangle, draw=purple!80!black, fill=purple!5, rounded corners=3pt, thick, align=center, font=\scriptsize, minimum width=2.3cm, minimum height=1.6cm},
-    arrow/.style={-{Stealth[scale=0.9]}, thick, draw=purple!80!black}
+    font=\sffamily\tiny,
+    block/.style={rectangle, draw=red!70!black, thick, rounded corners=2pt, minimum width=2.1cm, minimum height=1.1cm, align=left, fill=white},
+    arr/.style={-{Stealth[length=1.5mm]}, thick, draw=red!80!black}
 ]
 
-\node[vbox] (v1) at (0,0) {
-    \textbf{Version 1}\\
-    \texttt{version:} 1\\
-    \texttt{fileHash:} $H(F_1)$\\
-    \texttt{prevHash:} \textbf{0x000...}
-};
+\node[block] (v1) {\textbf{Version 1}\\version: 1\\fileHash: $H(F_1)$\\\textbf{prevHash: \texttt{0x000...}}};
+\node[block, right=0.35cm of v1] (v2) {\textbf{Version 2}\\version: 2\\fileHash: $H(F_2)$\\\textbf{prevHash: $H(F_1)$}};
+\node[block, right=0.35cm of v2] (v3) {\textbf{Version 3}\\version: 3\\fileHash: $H(F_3)$\\\textbf{prevHash: $H(F_2)$}};
 
-\node[vbox] (v2) at (2.8,0) {
-    \textbf{Version 2}\\
-    \texttt{version:} 2\\
-    \texttt{fileHash:} $H(F_2)$\\
-    \texttt{prevHash:} $H(F_1)$
-};
-
-\node[vbox] (v3) at (5.6,0) {
-    \textbf{Version 3}\\
-    \texttt{version:} 3\\
-    \texttt{fileHash:} $H(F_3)$\\
-    \texttt{prevHash:} $H(F_2)$
-};
-
-\draw[arrow] (v2.west) -- node[above, font=\tiny] {$H(F_1)$} (v1.east);
-\draw[arrow] (v3.west) -- node[above, font=\tiny] {$H(F_2)$} (v2.east);
+\draw[arr] ($(v2.west)+(0,-0.15)$) -- node[above, text=red!80!black, font=\tiny\bfseries] {$H(F_1)$} ($(v1.east)+(0,-0.15)$);
+\draw[arr] ($(v3.west)+(0,-0.15)$) -- node[above, text=red!80!black, font=\tiny\bfseries] {$H(F_2)$} ($(v2.east)+(0,-0.15)$);
 
 \end{tikzpicture}
 \caption{Cryptographic backward-linked provenance chain in BlockSure: each subsequent version points immutably to the prior version's hash.}
 \label{fig:provenance_chain}
 \end{figure}
 
-\textbf{Definition 3 (Two-Phase State Verification):} Given a client-computed hash $h_{\text{calc}} = H(F_{\text{local}})$:
+\textbf{Definition 3 (Two-Phase State Verification):} Given a client-computed hash $h_{\mathrm{calc}} = H(F_{\mathrm{local}})$:
 \begin{equation}
-    \mathcal{D}(ID, h_{\text{calc}}) = \begin{cases} 
-    \text{VERIFIED}, & \text{if } h_{\text{calc}} = H(F_{\text{current}}) \quad [O(1)] \\
-    \text{HISTORICAL}(k), & \text{if } \exists k < \text{cur} : h_{\text{calc}} = H(F_k) \quad [O(V)] \\
-    \text{TAMPERED}, & \text{if } \forall k \le \text{cur} : h_{\text{calc}} \neq H(F_k) \quad [O(V)] \\
-    \text{NOT\_REGISTERED}, & \text{if } ID \notin \mathcal{K}_{\text{registry}} \quad [O(1)]
-    \end{cases}
+\mathcal{D}(\mathit{ID}, h_{\mathrm{calc}}) = 
+\begin{cases}
+\text{VERIFIED}, & \text{if } h_{\mathrm{calc}} = H(F_{\mathrm{current}}) \\
+\text{HISTORICAL}(k), & \text{if } \exists k < \mathit{cur} : h_{\mathrm{calc}} = H(F_k) \\
+\text{TAMPERED}, & \text{if } \forall k \le \mathit{cur} : h_{\mathrm{calc}} \neq H(F_k) \\
+\text{NOT\_REGISTERED}, & \text{if } \mathit{ID} \notin \mathcal{K}_{\mathrm{registry}}
+\end{cases}
 \end{equation}
+where verification operates in $\mathcal{O}(1)$ time complexity for current state and unregistered queries, and $\mathcal{O}(V)$ for historical chain traversal and tamper detection.
 
 \subsection{Smart Contract Algorithms}
-The core logic is implemented in Solidity (\texttt{FileIntegrityRegistry.sol}). Algorithms~\ref{alg:add_version} and \ref{alg:verify_hash} outline version updates and state verification.
+The core logic is implemented in Solidity (\texttt{FileIntegrityRegistry.sol}). Algorithms~\ref{alg:addVersion} and~\ref{alg:verifyHash} outline version updates and state verification.
 
-\begin{algorithm}[h]
+\begin{algorithm}[htbp]
 \caption{Authorized Version Registration (\texttt{addVersion})}
-\label{alg:add_version}
+\label{alg:addVersion}
 \begin{algorithmic}[1]
-\REQUIRE $ID \in \mathcal{K}_{\text{registry}}$
-\REQUIRE $\text{caller} = \text{owner} \lor \text{caller} \in \mathcal{C}_{ID}$
-\REQUIRE $h_{\text{new}} \neq 0 \land h_{\text{new}} \neq H(F_{\text{current}})$
-\STATE $n \leftarrow \text{currentVersion} + 1$
-\STATE $h_{\text{prev}} \leftarrow H(F_{\text{current}})$
-\STATE $\text{currentVersion} \leftarrow n$
-\STATE $\mathcal{V}_n \leftarrow \langle n, h_{\text{new}}, \text{name}, \text{size}, \text{timestamp}, h_{\text{prev}}, \text{caller}, \text{note} \rangle$
-\STATE \textbf{emit} \texttt{VersionAdded}($ID, \text{caller}, n, h_{\text{new}}, h_{\text{prev}}, \text{timestamp}$)
+\REQUIRE $\mathit{ID} \in \mathcal{K}_{\mathrm{registry}}$
+\REQUIRE $\mathrm{caller} = \mathrm{owner} \lor \mathrm{caller} \in \mathcal{C}_{\mathit{ID}}$
+\REQUIRE $h_{\mathrm{new}} \neq 0 \land h_{\mathrm{new}} \neq H(F_{\mathrm{current}})$
+\STATE $n \leftarrow \mathit{currentVersion} + 1$
+\STATE $h_{\mathrm{prev}} \leftarrow H(F_{\mathrm{current}})$
+\STATE $\mathit{currentVersion} \leftarrow n$
+\STATE $V_n \leftarrow \langle n, h_{\mathrm{new}}, \mathit{name}, \mathit{size}, t_n, h_{\mathrm{prev}}, \mathrm{caller}, \mathit{note} \rangle$
+\STATE \textbf{emit} $\text{VersionAdded}(\mathit{ID}, \mathrm{caller}, n, h_{\mathrm{new}}, h_{\mathrm{prev}}, t_n)$
 \end{algorithmic}
 \end{algorithm}
 
-\begin{algorithm}[h]
+\begin{algorithm}[htbp]
 \caption{Two-Phase State Verification (\texttt{verifyHash})}
-\label{alg:verify_hash}
+\label{alg:verifyHash}
 \begin{algorithmic}[1]
-\REQUIRE $ID \in \mathcal{K}_{\text{registry}}$
-\STATE $n \leftarrow \text{currentVersion}$
-\STATE $h_{\text{cur}} \leftarrow \mathcal{V}_n.\text{fileHash}$
-\IF{$h_{\text{calc}} == h_{\text{cur}}$}
-    \RETURN $(\text{true}, n, n, h_{\text{cur}}, \text{owner}, \mathcal{V}_n.t)$ \COMMENT{$O(1)$ Fast Path}
+\REQUIRE $\mathit{ID} \in \mathcal{K}_{\mathrm{registry}}$
+\STATE $n \leftarrow \mathit{currentVersion}$
+\STATE $h_{\mathrm{cur}} \leftarrow V_n.\mathit{fileHash}$
+\IF{$h_{\mathrm{calc}} == h_{\mathrm{cur}}$}
+    \RETURN $(\mathbf{true}, n, n, h_{\mathrm{cur}}, \mathrm{owner}, V_n.t)$ \hfill \{$\mathcal{O}(1)$ Fast Path\}
 \ENDIF
-\FOR{$v = 1$ \TO $n - 1$}
-    \IF{$\mathcal{V}_v.\text{fileHash} == h_{\text{calc}}$}
-        \RETURN $(\text{false}, v, n, h_{\text{cur}}, \text{owner}, \mathcal{V}_n.t)$ \COMMENT{$O(V)$ Traversal}
+\FOR{$v = 1$ \textbf{to} $n - 1$}
+    \IF{$V_v.\mathit{fileHash} == h_{\mathrm{calc}}$}
+        \RETURN $(\mathbf{false}, v, n, h_{\mathrm{cur}}, \mathrm{owner}, V_n.t)$ \hfill \{$\mathcal{O}(V)$ Traversal\}
     \ENDIF
 \ENDFOR
-\RETURN $(\text{false}, 0, n, h_{\text{cur}}, \text{owner}, \mathcal{V}_n.t)$ \COMMENT{Tampered}
+\RETURN $(\mathbf{false}, 0, n, h_{\mathrm{cur}}, \mathrm{owner}, V_n.t)$ \hfill \{Tampered\}
 \end{algorithmic}
 \end{algorithm}
 
+% =========================================================================
+% SECTION IV: IMPLEMENTATION DETAILS
+% =========================================================================
 \section{Implementation Details}
-The prototype includes:
+The prototype system includes:
 \begin{itemize}
-    \item \textbf{Smart Contract:} Solidity \texttt{\textasciicircum 0.8.20}, compiled with Paris EVM target, 200 optimizer runs.
+    \item \textbf{Smart Contract:} Solidity \texttt{\^{}0.8.20}, compiled with Paris EVM target, 200 optimizer runs.
     \item \textbf{Client Frontend:} React 18.3.1, TypeScript 5.6.2, Vite 5.4.8, and Tailwind CSS 3.4.13.
-    \item \textbf{Web Crypto API:} \texttt{crypto.subtle.digest("SHA-256")} executing directly in browser worker memory.
+    \item \textbf{Web Crypto API:} \path{crypto.subtle.digest("SHA-256")} executing directly in browser worker memory.
     \item \textbf{Blockchain RPC:} Ethers.js v6.13.4 communicating via EIP-1193 provider.
 \end{itemize}
 
+% =========================================================================
+% SECTION V: EXPERIMENTAL RESULTS AND DISCUSSION
+% =========================================================================
 \section{Experimental Results and Discussion}
-
 All empirical tests were executed on an Intel x86\_64 host (Windows 11, Node.js v20.x, Chrome V8) interfacing with the Hardhat EVM.
 
 \subsection{Experiment 1: Tamper Detection Accuracy}
-To evaluate RQ1, twenty controlled test documents were subjected to seven mutation classes. As summarized in Table~\ref{tab:tamper_results}, all 20 files and all 7 modification conditions were correctly flagged, yielding an empirical \textbf{100.0\% detection rate (20/20)}.
+To evaluate RQ1, twenty controlled test documents were subjected to seven mutation classes. As summarized in Table~\ref{tab:tamper_accuracy}, all 20 files and all 7 modification conditions were correctly flagged, yielding an empirical 100.0\% detection rate (20/20).
 
-\begin{table}[h]
-\caption{Tamper Detection Accuracy across Mutation Classes}
-\label{tab:tamper_results}
+\begin{table}[htbp]
 \centering
-\begin{tabular}{clllc}
+\caption{Tamper Detection Accuracy Across Mutation Classes}
+\label{tab:tamper_accuracy}
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{clccc}
 \toprule
 \textbf{Case} & \textbf{Alteration Type} & \textbf{Expected} & \textbf{Decision} & \textbf{Bit Diff} \\
 \midrule
@@ -267,109 +284,113 @@ To evaluate RQ1, twenty controlled test documents were subjected to seven mutati
 \end{tabular}
 \end{table}
 
-Crucially, Test Case 1.2 confirmed the \textbf{filename invariance property}: altering file metadata without modifying underlying bytes produces an identical 32-byte digest, eliminating false-positive alarms.
+Crucially, Test Case 1.2 confirmed the filename invariance property: altering file metadata without modifying underlying bytes produces an identical 32-byte digest, eliminating false-positive alarms.
 
 \subsection{Experiment 2: Client Hashing Throughput}
-Client-side latency was benchmarked using the Web Crypto API across $N=30$ repeated trials per payload magnitude. Table~\ref{tab:hashing_perf} and Fig.~\ref{fig:hashing_chart} demonstrate that throughput scales linearly with buffer size, stabilizing between 220 and 303~MB/s for files above 64~KB.
+Client-side latency was benchmarked using the Web Crypto API across $N = 30$ repeated trials per payload magnitude. Table~\ref{tab:client_throughput} and Fig.~\ref{fig:hashing_latency} demonstrate that throughput scales linearly with buffer size, stabilizing between 220 and 303~MB/s for files above 64~KB.
 
-\begin{table}[h]
-\caption{Client-Side Hashing Latency and Throughput ($N=30$)}
-\label{tab:hashing_perf}
+\begin{table}[htbp]
 \centering
-\begin{tabular}{ccccc}
+\caption{Client-Side Hashing Latency and Throughput ($N = 30$)}
+\label{tab:client_throughput}
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{rrcrc}
 \toprule
 \textbf{Payload Size} & \textbf{Buffer (Bytes)} & \textbf{Mean (ms)} & \textbf{Std Dev $\sigma$} & \textbf{Throughput} \\
 \midrule
-1 KB & 1,024 & 0.072 ms & $\pm 0.012$ ms & 13.49 MB/s \\
-64 KB & 65,536 & 0.276 ms & $\pm 0.035$ ms & 226.45 MB/s \\
-512 KB & 524,288 & 1.991 ms & $\pm 0.142$ ms & 251.08 MB/s \\
-1 MB & 1,048,576 & 3.424 ms & $\pm 0.218$ ms & 292.05 MB/s \\
-5 MB & 5,242,880 & 17.086 ms & $\pm 0.865$ ms & 292.63 MB/s \\
-10 MB & 10,485,760 & 32.943 ms & $\pm 1.450$ ms & 303.55 MB/s \\
+1 KB   & 1,024       & 0.072 ms  & $\pm0.012$ ms & 13.49 MB/s \\
+64 KB  & 65,536      & 0.276 ms  & $\pm0.035$ ms & 226.45 MB/s \\
+512 KB & 524,288     & 1.991 ms  & $\pm0.142$ ms & 251.08 MB/s \\
+1 MB   & 1,048,576   & 3.424 ms  & $\pm0.218$ ms & 292.05 MB/s \\
+5 MB   & 5,242,880   & 17.086 ms & $\pm0.865$ ms & 292.63 MB/s \\
+10 MB  & 10,485,760  & 32.943 ms & $\pm1.450$ ms & 303.55 MB/s \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\begin{figure}[h]
+\begin{figure}[htbp]
 \centering
 \begin{tikzpicture}
 \begin{axis}[
-    width=8.0cm,
-    height=4.8cm,
+    width=0.88\linewidth,
+    height=4.5cm,
     xlabel={Payload Size (MB)},
     ylabel={Hashing Latency (ms)},
-    xmin=0, xmax=11,
-    ymin=0, ymax=36,
+    xmin=0, xmax=10.5,
+    ymin=0, ymax=35,
     grid=both,
     grid style={line width=.1pt, draw=gray!20},
-    major grid style={line width=.2pt, draw=gray!50},
-    font=\footnotesize
+    major grid style={line width=.2pt, draw=gray!40},
+    tick label style={font=\scriptsize},
+    label style={font=\footnotesize},
 ]
-\addplot[
-    color=blue!70!black,
-    mark=square*,
-    thick
-] coordinates {
+\addplot[color=blue!70!black, mark=square*, mark size=1.5pt, thick] coordinates {
     (0.001, 0.072)
     (0.064, 0.276)
     (0.512, 1.991)
-    (1.000, 3.424)
-    (5.000, 17.086)
-    (10.000, 32.943)
+    (1.0, 3.424)
+    (5.0, 17.086)
+    (10.0, 32.943)
 };
 \end{axis}
 \end{tikzpicture}
-\caption{Client-side SHA-256 hashing latency across payload sizes up to 10~MB ($N=30$ trials per payload size).}
-\label{fig:hashing_chart}
+\caption{Client-side SHA-256 hashing latency across payload sizes up to 10 MB ($N = 30$ trials per payload size).}
+\label{fig:hashing_latency}
 \end{figure}
 
 \subsection{Experiment 3: Smart Contract Gas Consumption Profile}
 Exact gas usage metrics extracted from confirmed EVM transaction receipts are detailed in Table~\ref{tab:gas_profile} and visualized in Fig.~\ref{fig:gas_chart}.
 
-\begin{table}[h]
+\begin{table}[htbp]
+\centering
 \caption{Smart Contract Gas Consumption Profile}
 \label{tab:gas_profile}
-\centering
-\begin{tabular}{lccc}
+\footnotesize
+\setlength{\tabcolsep}{2.5pt}
+\begin{tabular}{lrrr}
 \toprule
 \textbf{Operation} & \textbf{Gas Units} & \textbf{Cost @ 20 Gwei} & \textbf{Cost (USD)} \\
 \midrule
-Contract Deployment & 2,474,757 & 0.049495 ETH & \$123.74 \\
-\texttt{registerFile()} (v1 Initial) & 354,375 & 0.007088 ETH & \$17.72 \\
-\texttt{addVersion()} (v2 Update) & 224,845 & 0.004497 ETH & \$11.24 \\
+Contract Deployment        & 2,474,757 & 0.049495 ETH & \$123.74 \\
+\texttt{registerFile()} (v1 Initial) & 354,375   & 0.007088 ETH & \$17.72 \\
+\texttt{addVersion()} (v2 Update)   & 224,845   & 0.004497 ETH & \$11.24 \\
 \texttt{authorizeCollaborator()} & 97,970 & 0.001959 ETH & \$4.90 \\
-\texttt{revokeCollaborator()} & 38,417 & 0.000768 ETH & \$1.92 \\
+\texttt{revokeCollaborator()}    & 38,417 & 0.000768 ETH & \$1.92 \\
 \texttt{logVerification()} (Audit) & 40,479 & 0.000810 ETH & \$2.02 \\
-\texttt{verifyHash()} (Integrity) & \textbf{0 gas} & 0.000000 ETH & \$0.00 \\
-\texttt{getFile()} / \texttt{getVersion()} & \textbf{0 gas} & 0.000000 ETH & \$0.00 \\
+\texttt{verifyHash()} (Integrity)  & 0 gas  & 0.000000 ETH & \$0.00 \\
+\texttt{getFile()} / \texttt{getVersion()} & 0 gas & 0.000000 ETH & \$0.00 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\begin{figure}[h]
+\begin{figure}[htbp]
 \centering
 \begin{tikzpicture}
 \begin{axis}[
     xbar,
-    width=8.0cm,
+    width=0.88\linewidth,
     height=4.6cm,
-    xlabel={Gas Units Consumed},
-    ytick={1, 2, 3, 4, 5},
-    yticklabels={\texttt{verifyHash}, \texttt{revokeCollab}, \texttt{authCollab}, \texttt{addVersion}, \texttt{registerFile}},
+    xlabel={Gas Units Consumed ($\times 10^5$)},
+    symbolic y coords={verifyHash, revokeCollab, authCollab, addVersion, registerFile},
+    ytick=data,
     nodes near coords,
     nodes near coords align={horizontal},
-    font=\scriptsize,
-    xmin=0, xmax=420000,
-    bar width=8pt,
-    grid=major,
-    grid style={dashed, gray!30}
+    every node near coord/.append style={font=\tiny},
+    xmin=0, xmax=4.4,
+    tick label style={font=\scriptsize},
+    label style={font=\footnotesize},
+    xmajorgrids=true,
+    bar width=7pt,
+    fill=purple!70!black,
+    draw=purple!90!black
 ]
-\addplot[fill=purple!60!black, draw=purple!90!black] coordinates {
-    (0, 1)
-    (38417, 2)
-    (97970, 3)
-    (224845, 4)
-    (354375, 5)
+\addplot coordinates {
+    (0,verifyHash)
+    (0.384,revokeCollab)
+    (0.980,authCollab)
+    (2.248,addVersion)
+    (3.544,registerFile)
 };
 \end{axis}
 \end{tikzpicture}
@@ -379,18 +400,24 @@ Contract Deployment & 2,474,757 & 0.049495 ETH & \$123.74 \\
 
 \textbf{Arithmetic Gas Check:} Updating an existing file (\texttt{addVersion}) requires 224,845 gas, compared to 354,375 gas for initial registration:
 \begin{equation}
-    \Delta \text{Gas} = \frac{354,375 - 224,845}{354,375} \times 100 = \frac{129,530}{354,375} \times 100 = \mathbf{36.55\%}
+\begin{aligned}
+\Delta\text{Gas} &= \frac{354{,}375 - 224{,}845}{354{,}375} \times 100\% \\
+&= \frac{129{,}530}{354{,}375} \times 100\% = 36.55\%
+\end{aligned}
 \end{equation}
-This 36.5\% efficiency gain occurs because storage slots for the parent record and index pointers are already allocated during registration. Furthermore, verification queries are read-only EVM \texttt{view} calls that consume \textbf{zero network transaction gas}.
+This 36.5\% efficiency gain occurs because storage slots for the parent record and index pointers are already allocated during registration. Furthermore, verification queries are read-only EVM view calls that consume zero network transaction gas.
 
 \subsection{Experiment 4: Execution Latencies}
 Latencies were benchmarked across 20 read queries and 5 on-chain write transactions under two configurations:
 \begin{itemize}
-    \item \textbf{In-Process EVM Execution:} Read latency $\mu = 2.36$~ms (min: 1.61~ms, max: 3.63~ms); Write confirmation $\mu = 3.59$~ms.
-    \item \textbf{Localhost HTTP JSON-RPC:} Read latency $\mu = 19.84$~ms (min: 3.45~ms, max: 142.68~ms); Write confirmation $\mu = 53.46$~ms.
+    \item \textbf{In-Process EVM Execution:} Read latency $\mu = 2.36\text{ ms}$ (min: 1.61~ms, max: 3.63~ms); Write confirmation $\mu = 3.59\text{ ms}$.
+    \item \textbf{Localhost HTTP JSON-RPC:} Read latency $\mu = 19.84\text{ ms}$ (min: 3.45~ms, max: 142.68~ms); Write confirmation $\mu = 53.46\text{ ms}$.
 \end{itemize}
 On public Ethereum networks, read queries are subject to standard JSON-RPC network transit (50--250~ms via Alchemy/Infura), while writes require consensus block slot intervals (12 seconds on Ethereum PoS).
 
+% =========================================================================
+% SECTION VI: COMPARATIVE EVALUATION WITH EXISTING METHODS
+% =========================================================================
 \section{Comparative Evaluation with Existing Methods}
 To establish scientific defensibility, we benchmark BlockSure against four established baseline paradigms. Every metric is categorized according to our 4-Tier Epistemic Rigor Taxonomy:
 \begin{itemize}
@@ -400,56 +427,34 @@ To establish scientific defensibility, we benchmark BlockSure against four estab
     \item \textbf{[Tier 4: Architectural]:} Formally proven from smart contract logic and cryptographic invariants.
 \end{itemize}
 
-\begin{table*}[t]
-\caption{Architectural and Quantitative Comparison Across Integrity Paradigms}
-\label{tab:comparative_matrix}
-\centering
-\begin{tabular}{lcccccp{2.8cm}}
-\toprule
-\textbf{Metric / Feature} & \textbf{Centralized DB} & \textbf{Naive On-Chain} & \textbf{IPFS + Blockchain} & \textbf{Merkle Batch} & \textbf{BlockSure (Ours)} & \textbf{Epistemic Basis} \\
-\midrule
-Trust Model & Centralized & Decentralized & Hybrid (P2P+EVM) & Hybrid Batch & \textbf{Decentralized EVM} & [Tier 4: Architectural] \\
-Single Point of Failure & Yes (Server) & None & None & None & \textbf{None} & [Tier 4: Architectural] \\
-Insider Tamper Resistance & 0\% (DBA edits) & 100\% Immutable & 100\% Immutable & 100\% Immutable & \textbf{100\% Immutable} & [Tier 4: Architectural] \\
-Client-Side Privacy & None (Upload) & 0\% (Public EVM) & Partial (Public IPFS) & 100\% (Client) & \textbf{100\% (Client RAM)} & [Tier 4: Architectural] \\
-Initial Registration Gas & 0 gas & 625,000 gas/KB & $\approx 115,000$ gas & $\approx 21,000$ gas & \textbf{354,375 gas} & [Tier 1: Measured (E)] \\
-Version Addition Gas & 0 gas & 625,000 gas/KB & $\approx 85,000$ gas & Batch window & \textbf{224,845 gas (-36.5\%)} & [Tier 1: Measured (E)] \\
-Verification Gas Cost & 0 gas & 0 gas (\texttt{view}) & 0 gas (\texttt{view}) & 0 gas + Proof & \textbf{0 gas (FREE \texttt{view})} & [Tier 1: Measured (E)] \\
-Verification Latency & 15--35 ms & 18--45 ms & 850--3,200 ms & 45--120 ms & \textbf{19.84 ms (Local RPC)} & [Tier 1: Measured (E)] \\
-Raw File Bytes Uploaded & 100\% file size & 100\% file size & 100\% file size & 0 bytes & \textbf{0 bytes (32-B digest)} & [Tier 4: Architectural] \\
-Gas Scaling vs File Size $S$ & $O(0)$ & $O(S)$ [Linear] & $O(1)$ [Constant] & $O(1)$ [Constant] & \textbf{$O(1)$ [Constant]} & [Tier 3: Theoretical] \\
-Algorithmic Verification & $O(1)$ (Indexed) & $O(1)$ & $O(1)$ CID match & $O(\log N)$ Merkle & \textbf{$O(1)$ cur / $O(V)$ hist} & [Tier 4: Contract Audit] \\
-Update Confirmation Window & Instant ($<1$ s) & 12 s (PoS Block) & 12 s + IPFS pin & 10 min -- 24 hrs & \textbf{12 s (PoS Block)} & [Tier 2: Ethereum Spec] \\
-Financial Cost (10 MB File) & \$0.00 & Exceeds Block Cap & \$5.75 (Gas+Pin) & $<$ \$0.05 (Amort.) & \textbf{\$8.86 (Fixed Gas)} & [Tier 1 / Tier 3 Derived] \\
-\bottomrule
-\end{tabular}
-\end{table*}
-
-\begin{figure}[h]
+\begin{figure}[htbp]
 \centering
 \begin{tikzpicture}
 \begin{axis}[
     ybar,
-    width=8.0cm,
-    height=4.6cm,
+    width=0.88\linewidth,
+    height=4.5cm,
     ylabel={Verification Latency (ms)},
-    xtick={1, 2, 3, 4, 5},
-    xticklabels={Centralized, Naive-Chain, IPFS+Chain, Merkle-Batch, BlockSure},
-    x tick label style={rotate=25, anchor=east, font=\scriptsize},
-    ymin=0, ymax=2200,
-    font=\scriptsize,
-    bar width=12pt,
-    grid=major,
-    grid style={dashed, gray!30},
+    symbolic x coords={Centralized, Naive-Chain, IPFS+Chain, Merkle-Batch, BlockSure},
+    xtick=data,
+    x tick label style={rotate=30, anchor=east, font=\scriptsize},
     nodes near coords,
-    every node near coord/.append style={font=\tiny, anchor=south}
+    nodes near coords align={vertical},
+    every node near coord/.append style={font=\tiny},
+    ymin=0, ymax=2100,
+    tick label style={font=\scriptsize},
+    label style={font=\footnotesize},
+    ymajorgrids=true,
+    bar width=8pt,
+    fill=teal!70!black,
+    draw=teal!90!black
 ]
-\addplot[fill=teal!60!black, draw=teal!90!black] coordinates {
-    (1, 25)
-    (2, 32)
-    (3, 1850)
-    (4, 85)
-    (5, 23)
+\addplot coordinates {
+    (Centralized, 25)
+    (Naive-Chain, 32)
+    (IPFS+Chain, 1850)
+    (Merkle-Batch, 85)
+    (BlockSure, 23)
 };
 \end{axis}
 \end{tikzpicture}
@@ -458,35 +463,93 @@ Financial Cost (10 MB File) & \$0.00 & Exceeds Block Cap & \$5.75 (Gas+Pin) & $<
 \end{figure}
 
 \subsection{Critical Performance Insights}
-\textbf{1. The $O(1)$ Gas Barrier vs. Client RAM:} Storing file data directly into EVM storage slots (\texttt{SSTORE}) costs 20,000 gas per 32 bytes ($\approx 625,000$ gas/KB). A 10~MB file would consume $6.25 \times 10^9$ gas, exceeding the 30M block gas limit by 208 times. BlockSure anchors only the 32-byte digest, making smart contract gas strictly $O(1)$ with respect to file size. Practical file size limits are determined by browser memory and V8 \texttt{ArrayBuffer} boundaries (~1--2~GB).
+\textit{1) The $\mathcal{O}(1)$ Gas Barrier vs. Client RAM:} Storing file data directly into EVM storage slots (\texttt{SSTORE}) costs 20,000 gas per 32 bytes ($\approx 625{,}000\text{ gas/KB}$). A 10~MB file would consume $6.25 \times 10^9$ gas, exceeding the 30M block gas limit by 208 times. BlockSure anchors only the 32-byte digest, making smart contract gas strictly $\mathcal{O}(1)$ with respect to file size. Practical file size limits are determined by browser memory and V8 ArrayBuffer boundaries ($\approx 1\text{--}2\text{ GB}$).
 
-\textbf{2. Latency Parity:} IPFS hybrids suffer from multi-hop Distributed Hash Table (DHT) lookup delays (850--3,200~ms, Fig.~\ref{fig:latency_comparison}). BlockSure achieves sub-20~ms query latency on local RPC, achieving speed parity with centralized REST APIs while eliminating server-side trust.
+\textit{2) Latency Parity:} IPFS hybrids suffer from multi-hop Distributed Hash Table (DHT) lookup delays (850--3,200~ms, Fig.~\ref{fig:latency_comparison}). BlockSure achieves sub-20~ms query latency on local RPC, achieving speed parity with centralized REST APIs while eliminating server-side trust.
 
-\textbf{3. Justification of RBAC Overhead:} Initial registration in BlockSure consumes 354,375 gas compared to ~115,000 gas for basic CID notarization. This overhead establishes the on-chain dynamic collaborator mapping and provenance arrays. This investment pays off with a 36.5\% gas reduction on version updates and a 100.0\% rejection rate against unauthorized overwrite attempts.
+\textit{3) Justification of RBAC Overhead:} Initial registration in BlockSure consumes 354,375 gas compared to 115,000 gas for basic CID notarization. This overhead establishes the on-chain dynamic collaborator mapping and provenance arrays. This investment pays off with a 36.5\% gas reduction on version updates and a 100.0\% rejection rate against unauthorized overwrite attempts.
 
+\begin{table*}[t]
+\centering
+\caption{Architectural and Quantitative Comparison Across Integrity Paradigms}
+\label{tab:comparative_benchmarks}
+\footnotesize
+\setlength{\tabcolsep}{3.5pt}
+\begin{tabularx}{\textwidth}{p{2.6cm} Y Y Y Y Y p{2.4cm}}
+\toprule
+\textbf{Metric / Feature} & \textbf{Centralized DB} & \textbf{Naive On-Chain} & \textbf{IPFS + Blockchain} & \textbf{Merkle Batch} & \textbf{BlockSure (Ours)} & \textbf{Epistemic Basis} \\
+\midrule
+Trust Model & Centralized & Decentralized & Hybrid (P2P+EVM) & Hybrid Batch & \textbf{Decentralized EVM} & [Tier 4: Architectural] \\
+Single Point of Failure & Yes (Server) & None & None & None & \textbf{None} & [Tier 4: Architectural] \\
+Insider Tamper Resistance & 0\% (DBA edits) & 100\% Immutable & 100\% Immutable & 100\% Immutable & \textbf{100\% Immutable} & [Tier 4: Architectural] \\
+Client-Side Privacy & None (Upload) & 0\% (Public EVM) & Partial (Public IPFS) & 100\% (Client) & \textbf{100\% (Client RAM)} & [Tier 4: Architectural] \\
+Initial Registration Gas & 0 gas & 625,000 gas/KB & $\approx 115{,}000$ gas & $\approx 21{,}000$ gas & \textbf{354,375 gas} & [Tier 1: Measured (E)] \\
+Version Addition Gas & 0 gas & 625,000 gas/KB & $\approx 85{,}000$ gas & Batch window & \textbf{224,845 gas (-36.5\%)} & [Tier 1: Measured (E)] \\
+Verification Gas Cost & 0 gas & 0 gas (view) & 0 gas (view) & 0 gas + Proof & \textbf{0 gas (FREE view)} & [Tier 1: Measured (E)] \\
+Verification Latency & 15--35 ms & 18--45 ms & 850--3,200 ms & 45--120 ms & \textbf{19.84 ms (Local RPC)} & [Tier 1: Measured (E)] \\
+Raw File Bytes Uploaded & 100\% file size & 100\% file size & 100\% file size & 0 bytes & \textbf{0 bytes (32-B digest)} & [Tier 4: Architectural] \\
+Gas Scaling vs File Size $S$ & $\mathcal{O}(0)$ & $\mathcal{O}(S)$ [Linear] & $\mathcal{O}(1)$ [Constant] & $\mathcal{O}(1)$ [Constant] & $\mathbf{\mathcal{O}(1)}$ \textbf{[Constant]} & [Tier 3: Theoretical] \\
+Algorithmic Verification & $\mathcal{O}(1)$ (Indexed) & $\mathcal{O}(1)$ & $\mathcal{O}(1)$ CID match & $\mathcal{O}(\log N)$ Merkle & $\mathbf{\mathcal{O}(1)}$ \textbf{cur /} $\mathbf{\mathcal{O}(V)}$ \textbf{hist} & [Tier 4: Contract Audit] \\
+Update Confirmation Window & Instant ($< 1$ s) & 12 s (PoS Block) & 12 s + IPFS pin & 10 min -- 24 hrs & \textbf{12 s (PoS Block)} & [Tier 2: Ethereum Spec] \\
+Financial Cost (10 MB File) & \$0.00 & Exceeds Block Cap & \$5.75 (Gas+Pin) & $<$ \$0.05 (Amort.) & \textbf{\$8.86 (Fixed Gas)} & [Tier 1 / Tier 3 Derived] \\
+\bottomrule
+\end{tabularx}
+\end{table*}
+
+% =========================================================================
+% SECTION VII: THREATS TO VALIDITY AND LIMITATIONS
+% =========================================================================
 \section{Threats to Validity and Limitations}
-\begin{enumerate}
-    \item \textbf{Off-Chain File Availability:} BlockSure attests to file integrity; it does not replicate physical data. If all off-chain copies are lost, the blockchain proves authenticity but cannot recover contents.
-    \item \textbf{Private Key Security:} Compromise of an owner's private key allows malicious collaborator authorization. Multi-signature schemes (e.g., Safe) mitigate this threat.
-    \item \textbf{Public Metadata Exposure:} While raw file contents remain private in client memory, metadata (filename, file size, timestamp) is visible on-chain.
-    \item \textbf{Local vs. Public Network Latency:} While gas mechanics are identical on Ethereum Mainnet, transaction confirmation times on public networks are governed by 12-second PoS slot intervals.
-\end{enumerate}
+\textit{1) Off-Chain File Availability:} BlockSure attests to file integrity; it does not replicate physical data. If all off-chain copies are lost, the blockchain proves authenticity but cannot recover contents.
 
+\textit{2) Private Key Security:} Compromise of an owner's private key allows malicious collaborator authorization. Multi-signature schemes (e.g., Safe) mitigate this threat.
+
+\textit{3) Public Metadata Exposure:} While raw file contents remain private in client memory, metadata (filename, file size, timestamp) is visible on-chain.
+
+\textit{4) Local vs. Public Network Latency:} While gas mechanics are identical on Ethereum Mainnet, transaction confirmation times on public networks are governed by 12-second PoS slot intervals.
+
+% =========================================================================
+% SECTION VIII: CONCLUSION
+% =========================================================================
 \section{Conclusion}
-This paper presented \textbf{BlockSure}, a client-side privacy-preserving blockchain architecture that unifies SHA-256 fingerprinting, Role-Based Access Control, and append-only version provenance. By keeping raw files off-chain and anchoring 32-byte digests in a Solidity smart contract, BlockSure provides tamper detection with zero raw-file transmission. Empirical evaluation demonstrated 100.0\% tamper-detection accuracy across 20 controlled test files, zero network gas costs for verification queries, a 36.5\% gas reduction on version updates, and sub-20~ms query latency. Future work includes integrating decentralized pinning layers (IPFS/Filecoin) and zero-knowledge proofs (zk-SNARKs) for selective metadata redaction.
+This paper presented BlockSure, a client-side privacy-preserving blockchain architecture that unifies SHA-256 fingerprinting, Role-Based Access Control, and append-only version provenance. By keeping raw files off-chain and anchoring 32-byte digests in a Solidity smart contract, BlockSure provides tamper detection with zero raw-file transmission. Empirical evaluation demonstrated 100.0\% tamper-detection accuracy across 20 controlled test files, zero network gas costs for verification queries, a 36.5\% gas reduction on version updates, and sub-20~ms query latency. Future work includes integrating decentralized pinning layers (IPFS/Filecoin) and zero-knowledge proofs (zk-SNARKs) for selective metadata redaction.
 
-\begin{thebibliography}{00}
-\bibitem{wang2018} P. Wang, Y. Zheng, W. Lou, and Y. T. Hou, ``Blockchain-based data integrity verification in cloud storage with privacy protection,'' \textit{IEEE Access}, vol. 6, pp. 78249--78259, 2018.
-\bibitem{liang2017} X. Liang, S. Shetty, D. Tosh, C. Kamhoua, K. A. Kwiat, and L. Njilla, ``ProvChain: A blockchain-based data provenance architecture in cloud environment with enhanced privacy and availability,'' in \textit{Proc. 17th IEEE/ACM Int. Symp. Cluster, Cloud Grid Comput. (CCGRID)}, 2017, pp. 468--477.
-\bibitem{gaetani2017} E. Gaetani, L. Aniello, R. Baldoni, F. Lombardi, A. Margheri, and V. Sassone, ``Blockchain-based database to ensure data integrity in cloud computing environments,'' in \textit{Proc. 1st Italian Conf. Cybersecurity (ITASEC)}, 2017, pp. 146--155.
-\bibitem{yue2021} C. Yue, C. Dong, and Z. Liu, ``A secure data integrity verification scheme with identity-based cryptography on blockchain,'' \textit{IEEE Trans. Dependable Secure Comput.}, vol. 18, no. 4, pp. 1653--1666, 2021.
-\bibitem{li2020} J. Li, J. Wu, and G. Chen, ``Blockchain-based data integrity auditing for cloud storage with authorized auditing,'' \textit{IEEE Internet of Things J.}, vol. 7, no. 12, pp. 11520--11531, 2020.
-\bibitem{ramachandran2018} A. Ramachandran and M. Kantarcioglu, ``Using blockchain and smart contracts for secure data provenance management,'' in \textit{Proc. 11th IEEE Int. Conf. Cloud Comput. (CLOUD)}, 2018, pp. 416--423.
-\bibitem{chen2019} Y. Chen, S. Ding, Z. Zheng, and X. Huang, ``Blockchain-based searchable and verifiable file encryption scheme with access control,'' \textit{IEEE Syst. J.}, vol. 14, no. 3, pp. 4230--4241, 2019.
-\bibitem{puthal2018} D. Puthal, N. Malik, S. P. Mohanty, E. Kougianos, and C. Yang, ``Everything you wanted to know about the blockchain: Its issue, applications, and open challenges,'' \textit{IEEE Consum. Electron. Mag.}, vol. 7, no. 4, pp. 10--15, 2018.
-\bibitem{steichen2018} M. Steichen, B. Fiz, M. Norvill, W. Shbair, and R. State, ``Blockchain-based data provenance for cloud storage: A survey,'' in \textit{Proc. IEEE Conf. Commun. Netw. Secur. (CNS)}, 2018, pp. 1--9.
-\bibitem{zhang2020} Y. Zhang, C. Xu, H. Li, and K. Yang, ``A decentralized file integrity verification system based on Ethereum smart contracts,'' \textit{J. Ambient Intell. Humaniz. Comput.}, vol. 11, no. 5, pp. 2145--2156, 2020.
-\bibitem{nizamuddin2019} N. Nizamuddin, K. Salah, M. A. Azad, J. Arshad, and M. Rehman, ``Decentralized document version control using Ethereum blockchain and IPFS,'' \textit{IEEE Access}, vol. 7, pp. 44147--44156, 2019.
+% =========================================================================
+% REFERENCES (Strict IEEE Sequential Format)
+% =========================================================================
+\begin{thebibliography}{11}
+\bibitem{wang2018}
+P.~Wang, Y.~Zheng, W.~Lou, and Y.~T.~Hou, ``Blockchain-based data integrity verification in cloud storage with privacy protection,'' \emph{IEEE Access}, vol.~6, pp.~78249--78259, 2018.
+
+\bibitem{liang2017}
+X.~Liang, S.~Shetty, D.~Tosh, C.~Kamhoua, K.~A.~Kwiat, and L.~Njilla, ``ProvChain: A blockchain-based data provenance architecture in cloud environment with enhanced privacy and availability,'' in \emph{Proc. 17th IEEE/ACM Int. Symp. Cluster, Cloud Grid Comput. (CCGRID)}, 2017, pp.~468--477.
+
+\bibitem{gaetani2017}
+E.~Gaetani, L.~Aniello, R.~Baldoni, F.~Lombardi, A.~Margheri, and V.~Sassone, ``Blockchain-based database to ensure data integrity in cloud computing environments,'' in \emph{Proc. 1st Italian Conf. Cybersecurity (ITASEC)}, 2017, pp.~146--155.
+
+\bibitem{yue2021}
+C.~Yue, C.~Dong, and Z.~Liu, ``A secure data integrity verification scheme with identity-based cryptography on blockchain,'' \emph{IEEE Trans. Dependable Secure Comput.}, vol.~18, no.~4, pp.~1653--1666, 2021.
+
+\bibitem{li2020}
+J.~Li, J.~Wu, and G.~Chen, ``Blockchain-based data integrity auditing for cloud storage with authorized auditing,'' \emph{IEEE Internet of Things J.}, vol.~7, no.~12, pp.~11520--11531, 2020.
+
+\bibitem{ramachandran2018}
+A.~Ramachandran and M.~Kantarcioglu, ``Using blockchain and smart contracts for secure data provenance management,'' in \emph{Proc. 11th IEEE Int. Conf. Cloud Comput. (CLOUD)}, 2018, pp.~416--423.
+
+\bibitem{chen2019}
+Y.~Chen, S.~Ding, Z.~Zheng, and X.~Huang, ``Blockchain-based searchable and verifiable file encryption scheme with access control,'' \emph{IEEE Syst. J.}, vol.~14, no.~3, pp.~4230--4241, 2019.
+
+\bibitem{puthal2018}
+D.~Puthal, N.~Malik, S.~P.~Mohanty, E.~Kougianos, and C.~Yang, ``Everything you wanted to know about the blockchain: Its issue, applications, and open challenges,'' \emph{IEEE Consum. Electron. Mag.}, vol.~7, no.~4, pp.~10--15, 2018.
+
+\bibitem{steichen2018}
+M.~Steichen, B.~Fiz, M.~Norvill, W.~Shbair, and R.~State, ``Blockchain-based data provenance for cloud storage: A survey,'' in \emph{Proc. IEEE Conf. Commun. Netw. Secur. (CNS)}, 2018, pp.~1--9.
+
+\bibitem{zhang2020}
+Y.~Zhang, C.~Xu, H.~Li, and K.~Yang, ``A decentralized file integrity verification system based on Ethereum smart contracts,'' \emph{J. Ambient Intell. Humaniz. Comput.}, vol.~11, no.~5, pp.~2145--2156, 2020.
+
+\bibitem{nizamuddin2019}
+N.~Nizamuddin, K.~Salah, M.~A.~Azad, J.~Arshad, and M.~Rehman, ``Decentralized document version control using Ethereum blockchain and IPFS,'' \emph{IEEE Access}, vol.~7, pp.~44147--44156, 2019.
 \end{thebibliography}
 
 \end{document}
