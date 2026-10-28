@@ -7,7 +7,10 @@
 [![Vite](https://img.shields.io/badge/Vite-5.4-purple.svg)](https://vitejs.dev/)
 [![Tailwind CSS](https://img.shields.io/badge/TailwindCSS-3.4-38bdf8.svg)](https://tailwindcss.com/)
 [![Netlify Status](https://img.shields.io/badge/Netlify-Live%20Demo-00C7B7.svg)](https://singular-tartufo-502127.netlify.app)
-[![GitHub](https://img.shields.io/badge/GitHub-Repository-black.svg)](https://github.com/vaishnavir2626/blockchain_file_integrity)
+[![GitHub](https://img.shields.io/badge/GitHub-Repository-black.svg)](https://github.com/vaishnavir26-byte/blockchain_integrity)
+
+> 🚀 **Live Production Application:** [https://singular-tartufo-502127.netlify.app](https://singular-tartufo-502127.netlify.app)  
+> 📦 **GitHub Repository:** [https://github.com/vaishnavir26-byte/blockchain_integrity](https://github.com/vaishnavir26-byte/blockchain_integrity)
 
 ---
 

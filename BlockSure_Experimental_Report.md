@@ -1,6 +1,6 @@
 # BlockSure v2.0 — Engineering Evaluation & Experimental Benchmark Report
 **Project:** Blockchain-Based File Integrity Verification with Provenance and Authorized Updates  
-**Repository:** [https://github.com/vaishnavir2626/blockchain_file_integrity](https://github.com/vaishnavir2626/blockchain_file_integrity)  
+**Repository:** [https://github.com/vaishnavir26-byte/blockchain_integrity](https://github.com/vaishnavir26-byte/blockchain_integrity)  
 **Live Production Web App:** [https://singular-tartufo-502127.netlify.app](https://singular-tartufo-502127.netlify.app)  
 **Target:** Engineering Project Prototype & Research Evaluation  
 
